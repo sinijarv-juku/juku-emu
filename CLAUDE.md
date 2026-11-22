@@ -204,7 +204,9 @@ release; the app shows the version, a `-dev` build with its commit. While
 it is 0.x, a release need not be compatible with earlier ones; spec §3.3
 says what each part means from 1.0.0. To release, drop `-dev` in a commit
 of its own, `build: bump the version to X.Y.Z`, and tag it `vX.Y.Z`; the
-next commit starts `X.Y+1.0-dev`.
+next commit starts `X.Y+1.0-dev`. The tag's workflow drafts the GitHub
+release with the Windows files; the signed macOS disk image is added from
+the Mac (docs/Development.md, "Releasing").
 
 The bundle identifier is `io.github.sinijarv-juku.juku-emu`, from the GitHub
 organization `sinijarv-juku`, and the document types use the same prefix

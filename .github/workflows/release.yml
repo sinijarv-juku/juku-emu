@@ -1,0 +1,67 @@
+# A tag vX.Y.Z makes a draft release with the Windows zip and installer
+# (docs/Development.md, "Releasing"). The macOS disk image is signed and
+# notarized on the developer's Mac and added to the draft by hand, which is
+# then published. Run by hand for a tag pushed before this workflow existed.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release's tag, vX.Y.Z
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - name: The tag is VERSION's
+        shell: bash
+        run: test "$TAG" = "v$(cat VERSION)" || { echo "::error::$TAG is not v$(cat VERSION)"; exit 1; }
+      - name: Rust, as rust-toolchain.toml names it
+        run: rustup toolchain install
+      - name: Inno Setup, for the installer
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+              choco install innosetup --yes --no-progress
+          }
+      - name: Build
+        shell: cmd
+        run: build.cmd dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows
+          path: |
+            target/Juku-*-windows-x64.zip
+            target/Juku-*-windows-x64-setup.exe
+          if-no-files-found: error
+
+  release:
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows
+          path: dist
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --draft \
+              --title "Juku ${TAG#v}" \
+              --notes "Juku ${TAG#v}. The macOS disk image follows; see the README for installation."

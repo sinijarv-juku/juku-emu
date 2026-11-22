@@ -1,0 +1,57 @@
+# Tests and builds both apps on every push to main and every pull request
+# (docs/Development.md, "Continuous integration"). The Mac app is built as
+# for other Macs, unsigned: releases are signed on the developer's Mac
+# (spec §3.4).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Rust, as rust-toolchain.toml names it
+        run: rustup toolchain install
+      - name: Xcode's Metal Toolchain
+        run: xcodebuild -downloadComponent MetalToolchain
+      - name: Tests
+        run: cargo test --locked
+      - name: Build
+        run: ./build.sh dist
+
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Rust, as rust-toolchain.toml names it
+        run: rustup toolchain install
+      - name: Inno Setup, for the installer
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+              choco install innosetup --yes --no-progress
+          }
+      - name: Tests
+        run: cargo test --locked
+      - name: Build
+        shell: cmd
+        run: build.cmd dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows
+          path: |
+            target/Juku-*-windows-x64.zip
+            target/Juku-*-windows-x64-setup.exe
+          if-no-files-found: error

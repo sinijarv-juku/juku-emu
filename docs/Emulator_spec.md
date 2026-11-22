@@ -43,6 +43,7 @@ juku-emu/
 ├── VERSION                # the version, semantic: 0.5.0-dev (§3.3)
 ├── Cargo.toml, Cargo.lock # the Rust workspace: its crates and profiles (§3.1)
 ├── .cargo/config.toml     # cargo's output in target/cargo (§3.1)
+├── .github/workflows/     # GitHub Actions: ci.yml tests and builds both apps, release.yml drafts a release (docs/Development.md)
 ├── build.sh               # macOS: builds core and debug server (cargo) → ObjC/Metal → .app bundle
 ├── run.sh                 # macOS: launches the app with its os_log stream attached
 ├── package.sh             # macOS: signed release build → target/Juku-<version>.dmg (§3.4)

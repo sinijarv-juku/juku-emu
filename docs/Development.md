@@ -119,6 +119,14 @@ either: each test downloads its program with `curl` the first time, from
 `target/cpu_tests`, where `cargo clean` leaves them. Without the network
 they are skipped too.
 
+## Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`) runs the tests and builds both
+apps on every push to `main` and every pull request: on a macOS runner
+`cargo test` and `./build.sh dist`, on a Windows runner `cargo test` and
+`build.cmd dist`, whose zip and installer are kept as the run's artifacts.
+Neither is signed.
+
 ## Debugging Juku programs
 
 The Mac app is a debug server: it speaks the Debug Adapter Protocol (DAP)
@@ -178,3 +186,21 @@ The version is in `VERSION`, semantic (`MAJOR.MINOR.PATCH`), with `-dev`
 while the next one is being made. While it is 0.x, a release may break
 compatibility with earlier ones. Releases are tagged `vX.Y.Z`; the spec's
 §3.3 says what each part means from 1.0.0.
+
+## Releasing
+
+1. Commit the version without `-dev`, `build: bump the version to X.Y.Z`,
+   tag it `vX.Y.Z` and push both. The tag runs
+   `.github/workflows/release.yml`, which builds the Windows zip and
+   installer and makes a draft release with them.
+2. On the Mac, build, sign and notarize the disk image, and add it to the
+   draft:
+
+   ```sh
+   CODE_SIGN_IDENTITY=<hash> NOTARY_PROFILE=<profile> ./package.sh
+   gh release upload vX.Y.Z target/Juku-X.Y.Z.dmg
+   ```
+
+3. Look the draft over and publish it on GitHub (or
+   `gh release edit vX.Y.Z --draft=false`).
+4. Commit the next version, `build: start version X.Y+1.0-dev`.
