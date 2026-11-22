@@ -40,7 +40,7 @@ The macOS front-end has no Xcode project: a zsh `build.sh` assembles the `.app` 
 
 ```
 juku-emu/
-├── VERSION                # the version, semantic: 0.5.0-dev (§3.3)
+├── VERSION                # the version, semantic: MAJOR.MINOR.PATCH, -dev between releases (§3.3)
 ├── Cargo.toml, Cargo.lock # the Rust workspace: its crates and profiles (§3.1)
 ├── .cargo/config.toml     # cargo's output in target/cargo (§3.1)
 ├── .github/workflows/     # GitHub Actions: ci.yml tests and builds both apps, release.yml drafts a release (docs/Development.md)
