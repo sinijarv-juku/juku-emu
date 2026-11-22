@@ -1,5 +1,6 @@
-# Tests and builds both apps on every push to main and every pull request
-# (docs/Development.md, "Continuous integration"). The Mac app is built as
+# Tests and builds both apps on every push to main and every pull request,
+# except one that changes only documentation (docs/Development.md,
+# "Continuous integration"). The Mac app is built as
 # for other Macs, unsigned: releases are signed on the developer's Mac
 # (spec §3.4).
 name: CI
@@ -7,7 +8,13 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:

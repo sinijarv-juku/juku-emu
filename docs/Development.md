@@ -122,10 +122,12 @@ they are skipped too.
 ## Continuous integration
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the tests and builds both
-apps on every push to `main` and every pull request: on a macOS runner
+apps on every push to `main` and every pull request, except one that
+changes only documentation (Markdown files and `docs/`): on a macOS runner
 `cargo test` and `./build.sh dist`, on a Windows runner `cargo test` and
 `build.cmd dist`, whose zip and installer are kept as the run's artifacts.
-Neither is signed.
+Neither is signed. To run it anyway, start it by hand:
+`gh workflow run CI`.
 
 ## Debugging Juku programs
 
