@@ -8,27 +8,28 @@ RomBios in ROM and EKDOS, a CP/M compatible system, on 5.25" floppies.
 
 ## Features
 
-- **The machine, cycle by cycle:** the 8080 with its instruction
-  timings, the timers that make the picture and the sound, the interrupts,
-  the floppy controller, the keyboard and the mouse, as closely as we have
-  been able to work out from the ROMs, the disks, the documents and the
-  schematics. Programs that time their tricks to the beam run. Not
-  emulated: the cassette tape, the school network, the printer, and the
-  extra memory and RAM disk cards.
-- **A CRT on screen:** a picture modelled on a monitor of the time, with
-  its curve, scanlines, glow and bezel, or plain pixels.
-- **Two floppy drives**, with drive sounds: the motor, the head stepping
-  and the door.
-- **Snapshots** of the whole machine, disks and all, with a thumbnail of
-  the screen in Finder and Explorer, and a quick save and load on a key.
-- **The system ROMs included:** RomBios 3.43m, the default, and 3.43, and
-  the older JMON 3.3 monitor with BASIC. A ROM file of your own, and
-  expansion ROMs such as JBASIC, can be plugged in.
-- **The Juku's keyboard on yours**, by key position, with the Estonian
-  letters, and the Juku's mouse.
-- **A debugger for Juku programs** on the Mac, in VS Code (see
+- **Hardware emulation:** the 8080 CPU with its instruction timings, the
+  timers that generate the video and sound, the interrupt controller, the
+  floppy disk controller, the keyboard and the mouse. The behavior is
+  derived from the ROMs, disk images, documentation and schematics.
+  Programs that synchronize with the video beam should run correctly.
+  Not emulated: the cassette interface, the school network, the printer,
+  and the memory expansion and RAM disk cards.
+- **Display:** a simulated CRT monitor with screen curvature, scanlines,
+  phosphor glow and a bezel, or unfiltered pixels.
+- **Floppy drives:** two drives, with optional sounds for the motor, head
+  stepping and door.
+- **Snapshots:** the complete machine state, including the disks, saved
+  to a file. Finder and Explorer show a thumbnail of the screen. Quick
+  save and quick load have keyboard shortcuts.
+- **ROMs:** RomBios 3.43m (the default) and 3.43, and the earlier JMON 3.3
+  monitor with BASIC, are included. Other system ROM files and expansion
+  ROMs, such as JBASIC, can be loaded.
+- **Input:** the Juku keyboard layout mapped by key position, including
+  the Estonian letters, and the Juku mouse.
+- **Debugger:** debugging of Juku programs in VS Code, on macOS only (see
   [Development](docs/Development.md#debugging-juku-programs)).
-- **English and Estonian.**
+- **Languages:** English and Estonian user interface.
 
 | | |
 |---|---|
@@ -49,16 +50,16 @@ Download the latest release from the
   More info, then Run anyway.
 
 Disk images are not included. The
-[juku3000](https://github.com/infoaed/juku3000) project, which keeps the
-Juku usable, collects them, and its software catalogue tells where to
-download them. Juku reads `.juk` images, and raw sector images as `.img`,
+[juku3000](https://github.com/infoaed/juku3000) project, which preserves
+the Juku's software and documents, collects them, and its software catalog
+lists where to download them. Juku reads `.juk` images, and raw sector images as `.img`,
 `.dsk` or `.cpm`. juku3000 also has the ROMs, among them the JBASIC 1.1
 expansion ROM, which is not included here.
 
 ## Using Juku
 
-Juku starts with the machine switched on: RomBios greets you and waits at
-its `*` prompt, where a letter is a monitor command.
+Juku starts with the machine switched on: RomBios prints its banner and waits
+at its `*` prompt, where a letter is a monitor command.
 
 **Booting EKDOS.** Put a system disk in drive A: (Disks → A: → Insert…, or
 drag the image onto the window), then type `T` (boot), `D` (from disk) and
@@ -115,7 +116,7 @@ some programs need (RDEM, for one) and, on the Mac, the debugger.
   decisions taken.
 - [juku3000](https://github.com/infoaed/juku3000) (in Estonian): the
   Juku's history and documents, its operating system EKDOS, disk images,
-  ROMs and a catalogue of the software recovered from old disks, tapes and
+  ROMs and a catalog of the software recovered from old disks, tapes and
   ROMs.
 - [juku-sdk](https://github.com/sinijarv-juku/juku-sdk): the assembler, a
   disk image tool and the VS Code extension, for writing Juku programs.

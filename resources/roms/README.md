@@ -32,7 +32,7 @@ the emulator can change, so the setting is grayed out with it.
   documentation. These images were written by others (EktaSoft, EKTA, the
   design bureau of the Institute of Cybernetics in Tallinn), and the rights
   to them remain with their original authors or their successors.
-- **Included for preservation.** They are here so that the emulator works out
-  of the box and this machine stays usable. If you hold rights to these images
-  and want them removed, open an issue in this repository and they will be
-  taken out.
+- **Included for preservation.** They are here so that the emulator runs
+  without further downloads and the machine stays usable. If you hold
+  rights to these images and want them removed, open an issue in this
+  repository and they will be taken out.

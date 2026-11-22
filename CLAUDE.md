@@ -27,7 +27,7 @@ macOS and Windows.
   Win32 and Direct3D 12, calling the core's Rust API directly. The plan,
   the decisions taken and the as-built notes are in spec §11. `frontends/windows/thumbnail/` is Explorer's thumbnail
   handler for snapshots, a DLL. The macOS app is the reference for
-  behaviour.
+  behavior.
 - `resources/` holds what the front-ends share: the ROM images in `roms/`
   (`ekta31.bin`, `ekta37.bin`, `jmon33.bin`, 16 KB each; `ekta37.bin` is
   the default) and the UI strings in `strings/`. The user can also pick a ROM
@@ -36,8 +36,13 @@ macOS and Windows.
 
 ## Documentation
 
-Read the relevant section before changing behaviour, and update it in the same
-change. The documents are kept in step with the code.
+Read the relevant section before changing behavior, and update it in the same
+change. The documents are kept in step with the code. Write them as a
+professional technical writer would: neutral and factual, with no hype or
+marketing tone, in American spelling (behavior, color, center, gray,
+catalog, startup). Nothing has been tried on a real machine, so do not
+state that the emulation matches the hardware: say what it is based on,
+or that programs should behave as they would there.
 
 - `docs/Emulator_spec.md`: how the emulator is built (layout, build, core
   architecture, FFI, macOS layer, rendering, tests, decisions taken, the
@@ -53,7 +58,7 @@ change. The documents are kept in step with the code.
 
 What the real machine shows (its ROMs, disks, flux dumps, documents) always
 comes before MAME, which is not always right. MAME's `juku` driver is the
-behavioural reference only for what nothing real settles.
+behavioral reference only for what nothing real settles.
 
 ## Commands
 

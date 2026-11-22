@@ -162,9 +162,9 @@ The 8080 places the port number on both A0–A7 and A8–A15. On this board **th
 | Ports | Chip | Notes |
 |---|---|---|
 | **00–03** | 8259A PIC (D10) | A0 only. 00 = ICW1/OCW2/OCW3, 01 = ICW2/OCW1. 02/03 mirror 00/01. [SCH][ROM] |
-| **04–07** | 8255A PIO #1 (D26): keyboard, sound, tape transport, memory map, screen blank | Initialised with control word 82h: PA out, PB in, PC out. [ROM] |
+| **04–07** | 8255A PIO #1 (D26): keyboard, sound, tape transport, memory map, screen blank | Initialized with control word 82h: PA out, PB in, PC out. [ROM] |
 | **08–0B** | 8251A USART (D11): RS-232 / local network | 08 = data, 09 = control/status (0A/0B mirror). The BIOS "NetBios" uses it. The network shares one twisted-pair line between all stations, using the TTL / open-collector SOUT outputs. [ROM][MAN] |
-| **0C–0F** | 8255A PIO #2 (D27): **user port** on connector X2 | All 24 lines of PA, PB and PC go to X2 unbuffered, plus two user interrupt inputs IR0/IR1 (X2 pins 14, 18) [MAN]. It is used for the printer (the mouse is on the bus, §10.4). Initialised with 9Bh (all inputs). The printer driver waits for PC3 (port 0E bit 3), then outputs the byte on PA (0C). [ROM] X2 pins as the production manual prints them: PA0–PA7 on 08, 06, 02, 03, 04, 05, 06, 07; PB0–PB7 on 21, 27, 25, 26, 24, 22, 20, 18; PC0–PC7 on 13, 15, 17, 19, 11, 12, 09, 10; IR0 14, IR1 18; +5 V (≤ 0.3 A) 27; GND 29, 30. Pins 06, 27 and 18 appear twice and 01, 16, 23 and 28 not at all, so three entries are misprints (PA1 is probably 01). [BJ] |
+| **0C–0F** | 8255A PIO #2 (D27): **user port** on connector X2 | All 24 lines of PA, PB and PC go to X2 unbuffered, plus two user interrupt inputs IR0/IR1 (X2 pins 14, 18) [MAN]. It is used for the printer (the mouse is on the bus, §10.4). Initialized with 9Bh (all inputs). The printer driver waits for PC3 (port 0E bit 3), then outputs the byte on PA (0C). [ROM] X2 pins as the production manual prints them: PA0–PA7 on 08, 06, 02, 03, 04, 05, 06, 07; PB0–PB7 on 21, 27, 25, 26, 24, 22, 20, 18; PC0–PC7 on 13, 15, 17, 19, 11, 12, 09, 10; IR0 14, IR1 18; +5 V (≤ 0.3 A) 27; GND 29, 30. Pins 06, 27 and 18 appear twice and 01, 16, 23 and 28 not at all, so three entries are misprints (PA1 is probably 01). [BJ] |
 | **10–13** | 8253 #1 (D54): horizontal timing | [SCH][ROM] |
 | **14–17** | 8253 #2 (D55): vertical timing | [SCH][ROM] |
 | **18–1B** | 8253 #3 (D57): baud rates and sound | [SCH][ROM] |
@@ -212,7 +212,7 @@ The BIOS writes 27h and then 07h to port A at reset.
 | PC6 | Production: **side select**, 1 = side 1. 1987: tape STOP. [ROM] |
 
 PC2–PC6 go through inverting open-collector drivers to connector **X4**. In production units X4 is the floppy connector (§10.3); on the 1987 board it was the tape deck. The BIOS changes these bits with `IN 06h / ANI 83h / ORA bits / OUT 06h`, which leaves the memory mode (PC0–1) and POF (PC7) untouched.
-| PC7 | **POF: picture off**. 1 = video blanked. The BIOS sets PC7 during init and clears it afterwards with `OUT 07h,0Eh`. |
+| PC7 | **POF: picture off**. 1 = video blanked. The BIOS sets PC7 during init and clears it afterward with `OUT 07h,0Eh`. |
 
 ---
 
@@ -352,12 +352,12 @@ The video circuit is on sheet 2 of the 1987 schematic. It is taken to be the sam
 - 1 = lit pixel, 0 = black. The screen is cleared with 00 and glyph bits are 1. The ROM font confirms bit 7 = leftmost pixel: "F" at ROM 1D02h + 26h·9 renders correctly. [ROM][RB]
 - **POF** (PC7 = 1) blanks the output, and nothing else. Through D35 (7406, open collector) it disables the 74295 outputs and pulls the pixel line low. The address counter keeps counting.
   - The BIOS keeps the picture off while its power-on RAM test writes patterns over video RAM (§11), so a good boot shows a dark screen until the banner appears.
-  - MAME ignores POF and draws video RAM regardless, so its boot shows the test patterns as vertical stripes. That is a MAME artefact, not the real machine's behaviour. On real hardware, stripes at boot mean a RAM error (§3.3). [MAME]
+  - MAME ignores POF and draws video RAM regardless, so its boot shows the test patterns as vertical stripes. By the drawing, that is a MAME artifact: the real machine should show a dark screen, and the manual gives vertical lines at boot as the sign of a RAM error (§3.3). [MAME][SCH][MAN]
 - The pixel goes through D37 to the video output stage, where the sync signals from D34 are added. Two XOR gates of D34 give SYNC and SIG, which R62/R63 mix into the base of VT2 (КТ315), an emitter follower driving VIDEO (X6). [SCH][EMM]
 - **RF output.** The same SYNC and SIG also modulate an oscillator (VT3 КТ315, VT4 КТ325, coil L1) whose output goes through a resistive pad to X7, marked HF, for a TV set. The channel is set by L1 and a trimmer; the drawing does not name it. [EMM]
 
 ### 7.2 Timing is set by the BIOS through the 8253s. **The emulated 8253 must support BCD counting.**
-Initialisation (ROM 01D4–0220):
+Initialization (ROM 01D4–0220):
 
 | Timer.ch | Clock | Mode / count | Result |
 |---|---|---|---|
@@ -404,7 +404,7 @@ VER RTR is inverted (D35, open collector, pulled up by R60) and drives **8259 IR
 ### 7.4 The monitor
 The Электроника МС6105 is a black-and-white monitor with a near-black bezel. What follows comes from photos and video frames of working and switched-off machines, and from memory. [INF]
 - **Phosphor:** white, slightly bluish. Video recordings often show it as cyan; that comes from the camera's white balance, not the tube.
-- **Unlit face:** not black. Room light comes back off the grey screen. Video frames put it at 5–13% of full white in a lit room, but the camera brightened them; a few percent looks right. It is the same inside and outside the picture, so it is reflected light, not the beam's black level. Switched off in daylight, the face is a neutral grey with a slight green cast. It darkens to about 60% towards the bezel, in the bezel's shadow.
+- **Unlit face:** not black. Room light comes back off the gray screen. Video frames put it at 5–13% of full white in a lit room, but the camera brightened them; a few percent looks right. It is the same inside and outside the picture, so it is reflected light, not the beam's black level. Switched off in daylight, the face is a neutral gray with a slight green cast. It darkens to about 60% toward the bezel, in the bezel's shadow.
 - **Bezel:** near-black matte plastic, a little lit by the room. Its front stands about 1 cm in front of the edge of the glass. The inner wall leans out from the glass and rounds over into the front with no sharp edge, so a viewer in front of the screen sees it as a band around the glass, about a twentieth of the screen height wide. The wall is lit by the glow of the screen face: dimly by the unlit face, and more where lit picture lies near the edge. Being matte, it only brightens, with no mirror image.
 - **Beam bloom:** slight. Solid white areas show no gaps between lines; dithered areas show rows of dots. Overexposed video makes white look bold and dark letters in reverse video thin; a photo of a similar monitor taken at a normal exposure shows one-pixel dark strokes on white staying dark and crisp.
 - **White:** video of a working Juku clips it; in photos of similar monitors at a normal exposure it is a slightly bluish white, well short of clipping.
@@ -413,7 +413,7 @@ The Электроника МС6105 is a black-and-white monitor with a near-bla
 ---
 
 ### 7.5 Changing the timing while the picture is drawn [SCH][INF]
-The CPU can write the video timers at any time, and the 2 MHz CPU clock comes from the same crystal as the video: a line is exactly 128 CPU cycles. This section works out, from §7.1–7.2 and the 8253's documented behaviour, what software can do mid-frame. None of it has been tried on a real machine.
+The CPU can write the video timers at any time, and the 2 MHz CPU clock comes from the same crystal as the video: a line is exactly 128 CPU cycles. This section works out, from §7.1–7.2 and the 8253's documented behavior, what software can do mid-frame. None of it has been tried on a real machine.
 
 - **What a write does.**
   - A new count alone takes effect only at the next period (mode 2, T1.0 and T2.0) or the next trigger (mode 1, the others): for T1, the next line.
@@ -510,7 +510,7 @@ The 8080 INT pin is driven by the 8259. No NMI.
 ### 10.2 Cassette: 8251 D93 at CS7 (1C–1F) [SCH]
 - The CLK input is VIDEO CYCLE (1 MHz).
 - **T3.2** is clocked at 1.2308 MHz with its gate tied high, and its output, SYNC B., is the tape transmit clock (below). The clearer scan [EMM] shows it plainly: CLK2 on the "1.23M" line, the same as CLK0, and G2 on +5 V. MAME clocks it from VER RTR instead, as a frame counter. What it is wired to on production boards, which have no tape, is not known. [SCH][MAME]
-  - **RomBios uses it as a frame counter.** It writes 1Bh ← B0h (channel 2, LSB then MSB, mode 0) and the count FFFFh at start-up (ROM 01FC–020C). Every frame interrupt (ROM 053D) latches it, adds the inverted count, the pulses since the last reload, to the TIMCNT stopwatch at D463h, and reloads FFFEh. On a frame clock that adds 1 a frame, the "20 ms units" of TIMCNT (§14.2), and frames missed while the disk BIOS keeps the interrupt off are still counted. On 1.2308 MHz it adds about 24 600 a frame and the stopwatch wraps every 53 ms. Programs on period disks time themselves with TIMCNT in 20 ms units (PUSHER, LOGER, LAOLEO). [ROM]
+  - **RomBios uses it as a frame counter.** It writes 1Bh ← B0h (channel 2, LSB then MSB, mode 0) and the count FFFFh at startup (ROM 01FC–020C). Every frame interrupt (ROM 053D) latches it, adds the inverted count, the pulses since the last reload, to the TIMCNT stopwatch at D463h, and reloads FFFEh. On a frame clock that adds 1 a frame, the "20 ms units" of TIMCNT (§14.2), and frames missed while the disk BIOS keeps the interrupt off are still counted. On 1.2308 MHz it adds about 24 600 a frame and the stopwatch wraps every 53 ms. Programs on period disks time themselves with TIMCNT in 20 ms units (PUSHER, LOGER, LAOLEO). [ROM]
   - **RDEM.COM needs it fast.** It builds random numbers from bit 1 of port 1Ah, read nine times in a row without a latch. On a frame clock the counter always holds FFFEh when it reads, every bit is 1, and its random pixels fall on two places. It is remembered working on school machines, which suggests that boards with T3.2 on 1.2308 MHz were in use too, perhaps with another ROM. [EMU][INF]
   - The emulator clocks T3.2 from VER RTR by default and offers 1.2308 MHz as an option. `docs/T3.2_and_TIMCNT.md` has the details.
 - **Transmit:** TxC = T3.2 output ("SYNC B.R.", 1.2308 MHz base) ÷ 16 (CD4516, D102). TxD is combined with the bit clock by D97 (JK flip-flops) and an XOR (D95). This is **biphase/Manchester-type encoding**. The result goes to REC.DATA, connector pin 42.
@@ -597,7 +597,7 @@ The production manual adds "+5 V, power" to this table without a pin number; pin
   - Emulate it this way: a data-register access with PA6 = 0 stalls until DRQ, INTRQ or a timeout.
   - With PA6 = 1 the access goes straight through. The BIOS uses this only to load the target track before SEEK.
   - Completion is then detected by polling the status BUSY bit (E76Fh).
-- **Restore.** At start-up the BIOS restores both drives: drive 1 first (PC5 = 1, step rate from D60Fh), then drive 0.
+- **Restore.** At startup the BIOS restores both drives: drive 1 first (PC5 = 1, step rate from D60Fh), then drive 0.
 - **Motor.** RomBios never turns PC2 off again once a disk has been used: the motor line stays on while the system idles. An activity indicator must therefore watch the controller (BUSY), not PC2. [ROM][EMU]
 - **Verified in the emulator** [EMU]: with the tracks laid out as on real disks (Track format of real disks, below), the supplied ROM boots EKDOS 2.30 ("52K EKDOS 2.30", both drives "5\" 786K"), and SAVE writes files that survive a re-insert. The 6150-byte Read Track and 6161-byte Write Track loops of the BIOS both fit in the 6250-byte track.
 - **Track format of real disks** [FLX]. Every track of the three dumped disks has the same layout:
@@ -788,7 +788,7 @@ The production manual's table, signals active low:
 3. Check the warm-boot signature at D75C. Program the three 8253s (§7.2, §10.1).
 4. Run a RAM test over D300–FFFF.
 5. Clear the screen (D800, 0x25D0 bytes) and clear PC7 (screen on).
-6. Copy the vector area 3EC0 → FEC0 and the map-switch stubs 0325 → D75B. Initialise the 8259 and unmask IR5.
+6. Copy the vector area 3EC0 → FEC0 and the map-switch stubs 0325 → D75B. Initialize the 8259 and unmask IR5.
 7. Test the ROM. The manual says RomBios prints one `+` per ROM chip (8 in total). A failing chip prints `-` at its position, and the test loops on that chip until reset.
    - Each 2 KB chip is checked with an 8-bit sum (ROM 03CAh, 0426h). Two tables drive it, at ROM 000Bh for chips 0–2 and at 180Bh for chips 3–7. Each table is a length word (1800h, 2800h) with the expected sums stored below it, one byte per chip, going down: 000Ah, 0009h, 0008h and 180Ah … 1806h. Each sum starts just after its table's length word, so neither the tables nor the expected sums are included in any sum. A ROM patch therefore only needs to adjust its own chip's byte. [ROM][EMU]
 8. Print the banner ("RomBios 3.4…") and the `*` monitor prompt (§14.1). The factory's acceptance tests expect "RomBios 3.43" after RESET (one reliability programme of 23.8.89 says 3.42), then boot EKDOS from the disk JUKU-1 with `T`, `D`, `D` and run the test QRUN (package DIAGNOSTICS, about 4 minutes, ending "CPU TESTS OK"). [BJ] "A" starts BASIC from a plug-in expander ROM (mode 2). The boot menu offers `System from <D>isk, <N>et ?`.
@@ -917,7 +917,7 @@ RomBios is the "resident network monitor", a derivative of the earlier JMON moni
 
 | Entry | Name | Function |
 |---|---|---|
-| FF8C | HGR | graphics mode: cursor to (0,0), colour white |
+| FF8C | HGR | graphics mode: cursor to (0,0), color white |
 | FF8F | HCOLOR | E = 0 black, otherwise white |
 | FF92 | HPLOT | plot point X = DE, Y = B |
 | FF95 | HPLOTT | draw a line to X = DE, Y = B |
@@ -960,7 +960,7 @@ Several variables are reached through pointers stored in ROM, so their RAM addre
 | +2 | SQHCODER | D4C0h | bits 0–5: row (1–6); bit 6: SHIFT; bit 7: CTRL |
 | +3 | SQHCODEC | D4C1h | column (1–16) |
 | −3 | CONCH | D4BBh | keyboard/console control flags (cursor-position query, LOS/disk OS, CTRL+P echo; bit 7 = key click off, §14.6) |
-| −4 | CONSW | D4BAh | bit 0 = CAPS LOCK, bit 1 = RUS. Start-up clears it (ROM 18C0h). The keyboard handler flips bit 0 on CAPS (code 81h) and bit 1 on LAT/RUS (82h) if a Cyrillic font is installed (RUSSYM high byte ≠ 0). The only feedback is the key click. |
+| −4 | CONSW | D4BAh | bit 0 = CAPS LOCK, bit 1 = RUS. Startup clears it (ROM 18C0h). The keyboard handler flips bit 0 on CAPS (code 81h) and bit 1 on LAT/RUS (82h) if a Cyrillic font is installed (RUSSYM high byte ≠ 0). The only feedback is the key click. |
 | −5 | SWSTATE | D4B9h | keyboard DIP switches = network settings (§6.4) |
 | −6 | FUNKEY | D4B8h | code of the function key pressed with SHIFT+CTRL |
 
@@ -1037,5 +1037,5 @@ Other codes below 20h are ignored.
 
 ### 14.6 Key click [ROM][EMU]
 - Every key that enters the buffer clicks. The keyboard handler (ROM 1253h) stores the code. Then, unless CONCH bit 7 is set, it runs the code at ROM 125Fh–1272h: it clears PA4 (quiet volume) and jumps to the BLEEP tail at 0597h with HL = 1 tick and DE = 03E8h (2 kHz). The BLEEP countdown runs on the frame interrupt, so the tone lasts 20–40 ms.
-- `ESC 0` sets CONCH bit 7 (and BLEEPVOL high), and `ESC 1` clears it. Start-up writes 48h to CONCH (ROM 11F8h), so the click is on. Software can turn it back on at any time.
+- `ESC 0` sets CONCH bit 7 (and BLEEPVOL high), and `ESC 1` clears it. Startup writes 48h to CONCH (ROM 11F8h), so the click is on. Software can turn it back on at any time.
 - **Emulator option.** Replacing the `JMP 0597h` at ROM 1270h with `RET` (C3h → C9h) removes the tone and keeps the volume change. The ROM test's sum for chip 2 (ROM 0008h, §11) goes up by 6, from 14h to 1Ah. RomBios 3.43 #0031 has the same code at the same address. In 3.43 #0035 it is 6 bytes later, at 1265h–1278h (JMP at 1276h), with the same chip sum at 0008h.
