@@ -43,7 +43,7 @@ Sheet numbers below are the drawing's own "Лист 1/2/3". In the PDF they appe
 | Serial | 2 × КР580ВВ51 (8251A) in the 1987 schematic: one for RS-232/network, one for cassette tape. Production E5101 units replaced the tape USART with a floppy controller (next row). [SCH][MAN] |
 | Floppy | **КР1818ВГ93 (WD1793) on the main board** in production units [MAN][ROM]. The disk unit E6502 (ДГШ3.065.008) holds **two ЕС 5323.01 5.25" double-sided drives in one housing**, daisy-chained on one 34-pin Shugart cable as drives 0 and 1, with its own power supply [FDU]. FM/MFM on 5.25", FM on 8". Standard format: 5.25" MFM, 80 tracks × 2 sides × 10 × 512 bytes = 800 KB (§10.3). |
 | Timers | 3 × КР580ВИ53 (8253): video timing, baud rates, sound [SCH][ROM] |
-| Video | Monochrome bitmap, linear framebuffer at D800h, 10 KB. Two formats: **320×240** (40×24 text) and **384×200** (64×20 text). The supplied BIOS uses 320×240. Text is drawn in software. 50 Hz composite video, 2 V, sync low, on X6 (VIDEO); the 1987 board also has an RF modulator for a TV set, on X7 (HF). Monitor Электроника МС6105. [ROM][MAN][EMM] |
+| Video | Monochrome bitmap, linear framebuffer at D800h, 10 KB. Two formats: **320×240** (40×24 text) and **384×200** (64×20 text). The supplied BIOS starts in 320×240 and switches to 384×200 on `ESC M 2` (§7.2). Text is drawn in software. 50 Hz composite video, 2 V, sync low, on X6 (VIDEO); the 1987 board also has an RF modulator for a TV set, on X7 (HF). Monitor Электроника МС6105. [ROM][MAN][EMM] |
 | Sound | 1-bit beeper from an 8253 output, gated by a PIO bit [SCH][ROM] |
 | Expansion | I-41 (Multibus-1 subset) on connector X1 [SCH][MAN]: ADR0–F, DAT0–7, MRDC/MWRC/IORC/IOWC, XACK, INHB, BLOCK, WREQ, INT4/INT6/INT7. It hosts the plug-in memory expander E6201 (≥ 8 KB ROM, typically BASIC; §10.5) and 32 KB external memory pages (§3). |
 | Other peripherals | Mouse E4701 (plug-in interface card on the I-41 bus connector X1, port 80h, interrupt IR6; §10.4), printer (СМ6329.02, RAVI-800 [BJ], Epson FX-800 or CPF H80), local network over twisted pair (up to 50 m, ≤ 4800 baud) [MAN] |
@@ -386,7 +386,11 @@ Initialization (ROM 01D4–0220):
 
 **Practical emulation:** render 320×240 (or 320×242) from `base = S3<<10`.
 
-**Second format, 384×200 (64×20 text).** The manual specifies it alongside 320×240. It uses the same 9600 bytes, as 48 bytes × 200 lines, and is produced only by reprogramming the 8253s. The supplied BIOS never sets it up. The terminal's acceptance tests check both formats under EKDOS: `MODE 6` for 64 × 20 and `MODE 4` for 40 × 24, each with a test file shown in the SED editor and compared with a printed figure (ТУ88 ЭССР 001-89, §4.11.3). The 64 × 20 figure confirms 20 rows of 64 characters. [BJ]
+**Second format, 384×200 (64×20 text).** The manual specifies it alongside 320×240. It uses the same 9600 bytes, as 48 bytes × 200 lines, and is produced only by reprogramming the 8253s. RomBios sets it up on `ESC M 2` (§14.4): the handler at ROM 0EEAh writes 16h to T1.1, 04h to T1.2, 0112h to T2.1 and 45h to T2.2, in BCD (ROM 0F0Dh–0F1Fh), and sets 64 characters a line. `ESC M 0` and `ESC M 1` set 40 and 53 characters a line, and when the format was 64×20 they write back the 320×240 counts 24h, 08h, 0072h and 25h (ROM 0F39h–0F4Bh). RomBios 3.43 #0031 has the same code at the same addresses; JMON 3.3 does not have it. [ROM][EMU]
+
+The sequence can be typed at EKDOS's `A>` prompt. The CCP echoes ESC as `^[`, but on RETURN it converts the line to upper case, finds no such command and prints the line back with the ESC unchanged, so typing `ESC m 2` and RETURN switches the format. A lowercase `m` sent by a program does nothing: RomBios matches `M` only. [ROM][EMU]
+
+The terminal's acceptance tests check both formats under EKDOS: `MODE 6` for 64 × 20 and `MODE 4` for 40 × 24, each with a test file shown in the SED editor and compared with a printed figure (ТУ88 ЭССР 001-89, §4.11.3). The 64 × 20 figure confirms 20 rows of 64 characters. [BJ]
 
 To support both formats, derive the geometry from the timer counts instead of hard-coding it. MAME does exactly this: it traps writes to ports 10h–12h and 14h–16h, decodes the BCD counts and resizes the visible area. Its default is 320×241. [MAME]
 
@@ -983,27 +987,36 @@ The offsets in the first column are relative to the address stored at FFA5h, whi
 
 Other codes below 20h are ignored.
 
-**ESC sequences** (an optional `[` after ESC is ignored)
+**ESC sequences** [ROM]
+
+RomBios looks up the character after ESC in a table at ROM 0C2Ah, the same in RomBios 3.43 and 3.43m. It matches upper case only: `ESC h` is not `ESC H`. Parameters are sent as their value + 20h. The window is the whole screen until `ESC #` opens a smaller one.
 
 | Sequence | Action |
 |---|---|
-| `ESC H` | home |
-| `ESC L` | home and clear screen |
-| `ESC = r v` or `ESC Y r v` | move cursor to row r, column v (each + 20h) |
-| `ESC J` | clear to end of screen |
-| `ESC K` | clear to end of line |
-| `ESC D` / `C` / `B` / `A` | cursor left / right / down / up |
-| `ESC R` | report cursor position; the next two key reads return r and v |
-| `ESC 0` / `1` | key click off / on |
-| `ESC 2` / `3` | scrolling off / on |
-| `ESC 4` / `5` | cursor and output off / on |
-| `ESC :` / `;` | line / page scroll mode |
-| `ESC '` / `(` | reverse video on / off |
-| `ESC M n` | text format: 0 = 40×24, 1 = 53×24, 2 = 64×20 |
-| `ESC # r1 v1 r2 v2` | open a window (in 53- and 64-column modes, v1 and v2+1 must be multiples of 4) |
-| `ESC N` | close the window |
+| `ESC H` | cursor home: the top left of the window |
+| `ESC L` | clear the window and home the cursor |
+| `ESC J` | clear from the cursor to the end of the window |
+| `ESC K` | clear from the cursor to the end of the line, at the window's right edge |
+| `ESC A` | cursor up; it stops at the top row |
+| `ESC B` | cursor down; on the bottom row the window scrolls, as for 0Ah |
+| `ESC C` | cursor right; at the end of a line to the start of the next, scrolling on the bottom row |
+| `ESC D` | cursor left; at the start of a line to the end of the one above, stopping at the top left |
+| `ESC = r v` or `ESC Y r v` | cursor to row r, column v, counted from the window's top left. A value past the window's bottom or right edge gives that edge. |
+| `ESC R` | report the cursor: the next two key reads (TTI) return its row and column, counted from 0 at the screen's top left, without 20h added |
+| `ESC 0` / `ESC 1` | key click off / on (§14.6) |
+| `ESC 2` / `ESC 3` | scrolling off / on. With scrolling off, a line feed on the bottom row leaves the cursor and the text where they are. |
+| `ESC 4` / `ESC 5` | cursor off / on. Text is still written. |
+| `ESC :` / `ESC ;` | smooth scrolling, one raster line at a time, ten steps a text row / scrolling a whole text row at once (the default) |
+| `ESC '` / `ESC (` | reverse video on / off for the characters written after it |
+| `ESC M n` | text format: n = `0` 40×24, `1` 53×24, `2` 64×20 (§7.2). It closes the window and homes the cursor; a change to or from 64×20 also clears the screen. Another n is ignored. |
+| `ESC # r1 v1 r2 v2` | open a window from row r1, column v1 to row r2, column v2, both corners included. They must be on the screen, with r1 < r2 and v1 < v2; in the 53- and 64-column formats v1 and v2 + 1 must be multiples of 4. The cursor goes to the window's top left, and the settings of `ESC 2`, `ESC 4` and `ESC :` return to `ESC 3`, `ESC 5` and `ESC ;`. A sequence with values outside these limits is ignored. |
+| `ESC N` | close the window: the window is the whole screen again. The cursor stays where it is. |
+| `ESC [` | ignored: the sequence goes on with the next character, so `ESC [ H` acts as `ESC H` |
+| `ESC ESC` | the sequence starts again |
 
-`ESC M` and the window sequences need the extended-text monitor versions. The cursor blinks in LAT mode and is steady in RUS mode.
+Any other character after ESC ends the sequence and is not shown. A code below 20h in place of a parameter of `ESC =`, `ESC Y` or `ESC #` ends the sequence and is dropped too.
+
+The window sequences are in both RomBios 3.43 ROMs (§7.2), whose banner says "Screen b/w 40x24/+wnd". The cursor blinks in LAT mode and is steady in RUS mode.
 
 ### 14.5 Character set (KOI-8 based, Table 3)
 - **00–1Fh** (control codes produced by the keyboard):
