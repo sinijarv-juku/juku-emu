@@ -1,0 +1,9 @@
+# Text files keep LF in every checkout, whatever core.autocrlf says: the
+# builds read some of them as they are (the strings, the shaders, the plist).
+* text=auto eol=lf
+# Windows' own scripts, with Windows' line endings.
+*.cmd text eol=crlf
+# Images, icons, ROMs and assembled demos.
+*.bin binary
+*.png binary
+*.ico binary

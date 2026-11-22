@@ -1,0 +1,6 @@
+CFBundleName = "Juku";
+CFBundleDisplayName = "Juku";
+NSHumanReadableCopyright = "© 2026 Vahur Sinijärv";
+"Juku Disk Image" = "Juku kettakujutis";
+"Raw Disk Image" = "Toores kettakujutis";
+"Juku Snapshot" = "Juku hetktõmmis";

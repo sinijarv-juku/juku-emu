@@ -1,0 +1,8 @@
+target
+.*
+!.gitignore
+!.gitattributes
+!.github
+!.cargo
+floppies
+demos/*.dbg

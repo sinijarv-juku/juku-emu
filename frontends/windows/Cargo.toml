@@ -1,0 +1,54 @@
+# The Windows front-end (spec §11). Built by build.cmd at the repository root,
+# which passes the target, -Z build-std and the RUSTFLAGS; the profiles are
+# the workspace's (the root Cargo.toml).
+
+[package]
+name = "juku-windows"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "Juku"
+path = "src/main.rs"
+test = false
+
+[dependencies]
+juku = { path = "../../core" }
+# The `implement` macro, for COM objects of the app's own, names this crate.
+windows-core = "=0.62.2"
+
+[dependencies.windows]
+version = "=0.62.2"
+features = [
+    "Win32_Foundation",
+    "Win32_Globalization",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D12",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Imaging",
+    "Win32_Media_Audio",
+    "Win32_Security",
+    "Win32_Security_Cryptography",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_DataExchange",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Performance",
+    "Win32_System_Registry",
+    "Win32_System_Shutdown",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_System_Variant",
+    "Win32_UI_Controls",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_WindowsAndMessaging",
+]

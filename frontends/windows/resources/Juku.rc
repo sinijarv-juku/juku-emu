@@ -1,0 +1,41 @@
+// Windows resources of Juku.exe: the icon, the manifest and the version
+// information. Everything else the app needs is in the exe through
+// include_bytes!. version.h is written by build.rs from
+// frontends/macos/resources/Info.plist; Juku.ico by make_artwork.ps1 from the
+// Mac app's icon.
+
+#pragma code_page(65001)
+
+#include "version.h"
+
+1 ICON "Juku.ico"       // the first icon is the exe's (main.rs, APP_ICON)
+
+1 24 "Juku.manifest"    // CREATEPROCESS_MANIFEST_RESOURCE_ID, RT_MANIFEST
+
+1 VERSIONINFO
+FILEVERSION JUKU_VERSION_NUMBER
+PRODUCTVERSION JUKU_VERSION_NUMBER
+FILEFLAGSMASK 0x3F
+FILEFLAGS 0
+FILEOS 0x40004          // VOS_NT_WINDOWS32
+FILETYPE 1              // VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"    // U.S. English, Unicode
+        BEGIN
+            VALUE "CompanyName", JUKU_AUTHOR
+            VALUE "FileDescription", "Juku"
+            VALUE "FileVersion", JUKU_VERSION
+            VALUE "InternalName", "Juku"
+            VALUE "LegalCopyright", JUKU_COPYRIGHT
+            VALUE "OriginalFilename", "Juku.exe"
+            VALUE "ProductName", "Juku"
+            VALUE "ProductVersion", JUKU_VERSION
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

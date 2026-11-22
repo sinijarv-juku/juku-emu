@@ -1,0 +1,30 @@
+# The Explorer thumbnail handler for snapshots (spec §11.6), the counterpart
+# of the Mac's Quick Look extension: JukuThumbnail.dll, which goes beside
+# Juku.exe. Built by build.cmd at the repository root, with the workspace's
+# profiles (the root Cargo.toml).
+
+[package]
+name = "juku-thumbnail"
+edition = "2024"
+publish = false
+
+[lib]
+name = "JukuThumbnail"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+test = false
+
+[dependencies]
+# The `implement` macro names this crate.
+windows-core = "=0.62.2"
+
+[dependencies.windows]
+version = "=0.62.2"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Imaging",
+    "Win32_System_Com",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_PropertiesSystem",
+]

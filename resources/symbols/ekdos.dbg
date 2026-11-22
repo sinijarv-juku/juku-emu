@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "comment": "EKDOS's fixed addresses, from docs/Juku_machine_description.md §3.4: the jumps to the warm boot and the BDOS, the FCBs and the buffer the CCP sets. The debugger loads them when EKDOS is in memory (spec §12.6).",
+  "labels": [
+    ["WBOOT",0],
+    ["BDOS",5],
+    ["TFCB",92],
+    ["TFCB2",108],
+    ["TBUFF",128]
+  ]
+}

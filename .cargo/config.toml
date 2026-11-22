@@ -1,0 +1,7 @@
+# Cargo's output goes into target/cargo, so that `cargo clean` leaves the
+# rest of target/ (the app, the packages) alone. A relative target-dir is
+# taken from this file's parent, the repository's root, wherever cargo runs.
+# The build flags are not here: they depend on build.sh's and build.cmd's
+# modes, and RUSTFLAGS here would apply to `cargo test` too.
+[build]
+target-dir = "target/cargo"

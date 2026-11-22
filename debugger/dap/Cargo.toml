@@ -1,0 +1,23 @@
+# The debug server (spec §12): DAP over TCP. The Mac app links this crate's
+# static library, which holds the core and its C ABI too (§12.2). The
+# Windows app has no server yet.
+
+[package]
+name = "juku-dap"
+edition = "2024"
+publish = false
+
+[lib]
+name = "juku_dap"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+juku = { path = "../../core" }
+
+[dev-dependencies]
+# From juku-sdk on GitHub; docs/Development.md says how to use a copy of
+# your own.
+# The tests assemble the bounce demo, and check the core's disassembler
+# against juku-i8080's table.
+juku-asm = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.1.0" }
+juku-i8080 = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.1.0" }

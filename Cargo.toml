@@ -1,0 +1,38 @@
+cargo-features = ["panic-immediate-abort"]
+
+# juku-emu's Rust crates (spec §2): one workspace, so one Cargo.lock, the
+# profiles here only, and cargo's output in target/cargo (.cargo/config.toml).
+#
+# build.sh and build.cmd build std from source (-Z build-std), which the
+# release profile's immediate-abort panics need, so plain
+# `cargo build --release` does not work; `cargo test` does.
+
+[workspace]
+members = ["core", "debugger/dap", "frontends/windows", "frontends/windows/thumbnail"]
+# The Windows crates build on Windows only, through build.cmd.
+default-members = ["core", "debugger/dap"]
+resolver = "3"
+
+[profile.release]
+opt-level = 2
+lto = true
+codegen-units = 1
+panic = "immediate-abort"
+
+# The server is not on any hot path: small beats fast. In the app this took
+# its code from 42 KB to 27 KB.
+[profile.release.package.juku-dap]
+opt-level = "s"
+
+[profile.dev]
+opt-level = 0
+
+[profile.dev.package.juku]
+opt-level = 1                         # keep the emulated CPU fast in debug builds
+
+[profile.test]
+opt-level = 3                         # CPU exercisers run billions of cycles
+
+# The test profile inherits the dev profile's override above.
+[profile.test.package.juku]
+opt-level = 3

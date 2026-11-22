@@ -1,0 +1,180 @@
+# Development
+
+Building Juku from source, its tests, and debugging Juku programs with it.
+How the emulator is built inside is in [Emulator_spec.md](Emulator_spec.md),
+and what we have worked out about the real machine in
+[Juku_machine_description.md](Juku_machine_description.md).
+
+## Building
+
+| | macOS | Windows |
+|---|---|---|
+| Builds | `./build.sh` → `target/Juku.app` | `build.cmd` → `target\windows\Juku.exe` |
+| Runs on | macOS 14 or later, on the architecture it was built on | Windows 10 and 11, x64 |
+| Needs | nightly Rust with `rust-src`; Xcode with its Metal Toolchain component (`xcodebuild -downloadComponent MetalToolchain`) | nightly Rust with `rust-src`; the Visual Studio Build Tools and the Windows SDK; Inno Setup 6 for the installer |
+
+```sh
+./build.sh                # release build, tuned for this computer
+./build.sh debug          # unoptimized, with debug info
+./build.sh dist           # release build for other Macs
+./run.sh                  # run it, with its log
+CODE_SIGN_IDENTITY=<hash> ./package.sh   # signed target/Juku-<version>.dmg
+```
+
+`build.cmd` takes the same `debug` and `dist`; on Windows `dist` makes a
+zip and, with Inno Setup, an installer.
+
+The build compiles Rust's standard library from source (`-Z build-std`),
+to make the program smaller, so plain `cargo build --release` does not
+work. `cargo test` does. Both need nightly Rust: `rust-toolchain.toml`
+names a nightly by its date, so that every build uses the same compiler,
+and `rustup` fetches it, with `rust-src`, on the first build. Moving to a
+newer one is a change of that date, in juku-sdk's too.
+
+The Rust code is one Cargo workspace: `core/` is the emulation core,
+`debugger/dap/` the debug server, `frontends/windows/` the Windows app.
+The macOS app is Objective-C, in `frontends/macos/`. Cargo's output goes
+to `target/cargo`.
+
+`package.sh` signs with `CODE_SIGN_IDENTITY`, a certificate in the
+keychain (`security find-identity -v -p codesigning` lists them), and with
+`NOTARY_PROFILE`, a `notarytool` keychain profile, notarizes the disk image
+too. The first run asks to let the terminal control Finder, which lays out
+the disk image's window.
+
+## juku-sdk
+
+The debug server's tests use two crates of
+[juku-sdk](https://github.com/sinijarv-juku/juku-sdk), the assembler
+`juku-asm` and the 8080's instruction table `juku-i8080`: they assemble the
+demos, and check the emulator's names and disassembler against the SDK's.
+They are *git dependencies* in `debugger/dap/Cargo.toml`:
+
+```toml
+juku-asm = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.1.0" }
+```
+
+Cargo clones the repository itself, at the tag, into its own cache, and
+builds the crates from there; `Cargo.lock` records the commit. Nothing
+needs to be cloned beside juku-emu, but the first build needs the network.
+Cargo reads every dependency before it builds, so `build.sh` fetches the
+SDK too, though the app does not use it.
+
+To move to a newer SDK, change the tag of both crates to the new release.
+
+### Working on juku-sdk too
+
+To have juku-emu use a copy of juku-sdk you are changing, clone both into
+one folder and put a cargo configuration file in that folder, outside both
+repositories:
+
+```
+juku/
+├── .cargo/config.toml
+├── juku-emu/
+└── juku-sdk/
+```
+
+```toml
+# juku/.cargo/config.toml
+[patch."https://github.com/sinijarv-juku/juku-sdk"]
+juku-asm = { path = "juku-sdk/crates/asm" }
+juku-i8080 = { path = "juku-sdk/crates/i8080" }
+```
+
+Cargo reads configuration files in the folders above the one it runs in,
+so this applies to juku-emu, and a relative path is taken from the folder
+holding `.cargo`. Without the file, or in a clone elsewhere, the release
+named by the tag is used.
+
+While the patch is in place, `Cargo.lock` names the local copy instead of
+the release. Leave that change out of commits.
+`build.sh` then warns that the patch "was not used in the crate graph":
+that is the standard library's own build (`-Z build-std`), which the patch
+applies to as well, and it does no harm.
+
+## Tests
+
+```sh
+cargo test                                            # the core and the debug server
+cargo test -p juku --test boot                        # one test file of the core
+cargo test -p juku --test cpu_exercisers -- --ignored # 8080EXM, about 20 s
+JUKU_TEST_DISKS=<folder> cargo test -p juku           # with the disk tests
+cargo run -p juku --profile test --example bench      # emulation speed, × real time
+```
+
+The disk, mouse and other tests that boot from floppies need
+`jukprog1.juk` and `jukgame1.juk`, the programs and games disks of MAME's
+Juku software list, which are not in the repository; juku3000
+(https://github.com/infoaed/juku3000) tells where to find them. The JBASIC
+test needs `jbasic11.bin`, the JBASIC 1.1 expansion ROM.
+`JUKU_TEST_DISKS` names the folder that holds them (a relative path is
+taken from `core/`); without it those tests are skipped, and report as
+passed.
+
+The CPU tests run the classic 8080 test programs: TST8080, 8080PRE,
+CPUTEST and 8080EXM. They are not ours, so they are not in the repository
+either: each test downloads its program with `curl` the first time, from
+[superzazu/8080](https://github.com/superzazu/8080) at a fixed commit, into
+`target/cpu_tests`, where `cargo clean` leaves them. Without the network
+they are skipped too.
+
+## Debugging Juku programs
+
+The Mac app is a debug server: it speaks the Debug Adapter Protocol (DAP)
+on `127.0.0.1`, port 5104, and VS Code connects to it through juku-sdk's
+extension. A program can be launched from VS Code, stopped, stepped by
+source line or by instruction, and its registers, memory, ports and
+devices looked at; breakpoints take conditions, hit counts and log
+messages, and watchpoints stop on a symbol's or a port's reads and writes.
+
+1. Install juku-sdk's commands and its VS Code extension, from a clone of
+   [juku-sdk](https://github.com/sinijarv-juku/juku-sdk):
+
+   ```sh
+   ./build.sh install                                   # juku-asm and the other commands
+   python3 vscode/package.py && code --install-extension target/juku.vsix
+   ```
+
+2. Assemble with debug information:
+
+   ```sh
+   juku-asm demos/bounce.asm demos/bounce.bin -g demos/bounce.dbg
+   ```
+
+3. Launch it from VS Code, with a `.vscode/launch.json` like this:
+
+   ```json
+   {
+       "version": "0.2.0",
+       "configurations": [
+           {
+               "type": "juku",
+               "request": "launch",
+               "name": "Bounce",
+               "program": "${workspaceFolder}/demos/bounce.bin",
+               "stopOnEntry": true
+           }
+       ]
+   }
+   ```
+
+   If nothing listens on the port, the extension starts Juku with its
+   debug server on. A Juku already running needs Settings → Machine →
+   Debugger: Accept Connections. `--debug-server[=<port>]` on Juku's
+   command line turns it on for one run, and
+   `defaults write io.github.sinijarv-juku.juku-emu DebuggerPort <n>` moves
+   it to another port.
+
+The extension's
+[README](https://github.com/sinijarv-juku/juku-sdk/blob/main/vscode/README.md)
+has the launch and attach settings, expressions and watchpoints; the
+server is described in [Emulator_spec.md](Emulator_spec.md) §12. The
+Windows app has no debug server yet.
+
+## Versions
+
+The version is in `VERSION`, semantic (`MAJOR.MINOR.PATCH`), with `-dev`
+while the next one is being made. While it is 0.x, a release may break
+compatibility with earlier ones. Releases are tagged `vX.Y.Z`; the spec's
+§3.3 says what each part means from 1.0.0.
