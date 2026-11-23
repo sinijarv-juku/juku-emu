@@ -1,6 +1,6 @@
 # Juku E5104 emulator — implementation spec
 
-Status: the macOS app, the Windows app (§11) and the guest debugger, served from the macOS app to VS Code (§12), are built; §8 says what is emulated and what is not. Each part gives the design, and "as built" notes record where the implementation adds to it or differs.
+Status: the macOS app, the Windows app (§11) and the guest debugger, served from both apps to VS Code (§12), are built; §8 says what is emulated and what is not. Each part gives the design, and "as built" notes record where the implementation adds to it or differs.
 
 Hardware reference: [Juku_machine_description.md](Juku_machine_description.md), cited below as "MD §n". This spec covers how the emulator is built, not how the machine works.
 
@@ -80,7 +80,7 @@ juku-emu/
 │   │                      # unit tests in each module (cfg(test))
 │   └── tests/             # integration tests (boot ROM headless, CPU exercisers, disks, debugging)
 ├── debugger/              # the guest debugger (§12)
-│   └── dap/               # crate juku-dap: the DAP server, with the core the Mac app's Rust library (§12.2); the VS Code extension is juku-sdk's (§12.8)
+│   └── dap/               # crate juku-dap: the DAP server, with the core the Mac app's Rust library and a crate the Windows app uses (§12.2); the VS Code extension is juku-sdk's (§12.8)
 ├── frontends/
 │   ├── macos/
 │   │   ├── compile_flags.txt  # for clangd: -fobjc-arc -fmodules -mmacosx-version-min=14.0
@@ -921,7 +921,7 @@ The Settings window exposes a curated subset.
 
 ## 8. Status
 
-**Emulated:** the production board with RomBios (three system ROMs bundled, any 16 KB ROM file, expansion ROMs up to 32 KB), the 8080 to the cycle, the interrupt controller, the three timers and the two PPIs, the video modes and their timing, the keyboard with its DIP switches, the speaker, two double- or single-sided 5.25" drives with their sounds, the E4701 mouse, and snapshots of the whole machine. The macOS app has the guest debugger (§12).
+**Emulated:** the production board with RomBios (three system ROMs bundled, any 16 KB ROM file, expansion ROMs up to 32 KB), the 8080 to the cycle, the interrupt controller, the three timers and the two PPIs, the video modes and their timing, the keyboard with its DIP switches, the speaker, two double- or single-sided 5.25" drives with their sounds, the E4701 mouse, and snapshots of the whole machine. Both apps have the guest debugger (§12).
 
 **Not emulated:** cassette tape and the early tape board, the local network (8251 networking and the F0–F3 coprocessor), printer output, the external 32 KB memory pages and the RAM disk, the 8" drive mode, and serial I/O. Where the machine description is unsure (MD §13), the emulator follows its best reading and says so.
 
@@ -980,7 +980,7 @@ The Settings window exposes a curated subset.
 
 ## 11. Windows front-end
 
-Status: the app boots to the `*` prompt with the CRT picture, takes the keyboard and the mouse, plays the speaker, has Pause and Warp, runs EKDOS from disk images it writes back, has the View menu and full screen, the Settings window and the ROM menus, saves and opens snapshots, and registers its file types with Explorer, with thumbnails of snapshots. Each part of this section gives the plan, then "as built" notes for where the implementation adds to it or differs. Keeping the disks in memory (§6.3) and the build changes since were checked on a Mac only (`cargo check --target x86_64-pc-windows-msvc`), not yet run on Windows.
+Status: the app boots to the `*` prompt with the CRT picture, takes the keyboard and the mouse, plays the speaker, has Pause and Warp, runs EKDOS from disk images it writes back, has the View menu and full screen, the Settings window and the ROM menus, saves and opens snapshots, registers its file types with Explorer, with thumbnails of snapshots, and serves the guest debugger (§11.8). Each part of this section gives the plan, then "as built" notes for where the implementation adds to it or differs. Keeping the disks in memory (§6.3) and the build changes since were checked on a Mac only (`cargo check --target x86_64-pc-windows-msvc`), not yet run on Windows.
 
 The macOS app (§6, §7) is the reference for behavior. The Windows app has the same menus, settings, pacing, drawing rules, disk and snapshot handling, and this section records only how it does them on Windows and where it has to differ.
 
@@ -1164,11 +1164,28 @@ The counterpart of the Quick Look extension: a DLL implementing `IThumbnailProvi
 - **Not signed.** Like the zip, the setup program gets Windows SmartScreen's warning until it has a reputation or a signature.
 - **Verified:** a silent install (`/VERYSILENT /TASKS=filetypes`) put the files in `%LOCALAPPDATA%\Programs\Juku`, the Start menu shortcut, the entry in Installed apps (Juku, 0.1, the publisher, Juku's icon) and the nine file type keys pointing at the installed copy, with no prompt; the installed Juku started. The silent uninstall removed the files, the shortcut, the entry and every key, and kept `Juku.ini`. A value another app kept under `.img\OpenWithProgids` was still there after the uninstall. The wizard shows the task ticked and the desktop shortcut not.
 
+### 11.8 Debug server
+
+The guest debugger (§12), served as the Mac app serves it (§12.3, §12.7).
+
+- **The crate.** `juku-windows` depends on `juku-dap` by path and calls its `Server` directly, as it calls the core (§11.1); `juku-dap`'s C ABI is the Mac's only.
+- **Ticks** (`emu_window.rs`, as `EmuView.m`): each tick polls the server before it runs the machine, and while the server is on the machine runs through `Server::run`, in warp's slices too, then `Server::poll`. The window keeps the last state (connected, stopped). A stop by the debugger is the app's Pause: Machine → Pause is ticked, Alt+P goes on (`Server::set_paused`), and a client that connects to a paused machine finds it stopped. The title shows Debugging before the paused or warp state, joined as on the Mac: `Juku — Debugging · Paused`.
+- **Settings.** The Machine pane's last row is the Mac's Debugger: Accept Connections (`AcceptDebugger` in `[Settings]`), with the note "VS Code and other DAP clients connect on port 5104, from this PC only.", a Windows-only string, since the Mac's names the Mac. The port is `DebuggerPort` in `[Settings]` (5104 when absent), with no control of its own: it is changed in `Juku.ini` while Juku is not running. A port that cannot be had is reported once, in a task dialog with the error icon, the Mac's message and its note ("Another program may be using it.").
+- **Command line.** `--debug-server` turns the server on for the run, on `DebuggerPort`, and `--debug-server=<port>` on that port; it wins over the setting. Any other argument is the file to open (§11.4).
+- **A Juku already running takes the port.** A second start with `--debug-server` hands the port to the running Juku with `WM_COPYDATA` (kind 2, the port as a `u16`), as it hands over a file (§11.4), and exits. The running Juku listens on that port from then on, whatever the setting says, until it quits. On the Mac `open -a` passes no arguments to an app that runs, so Accept Connections must be ticked there; on Windows VS Code's extension can start Juku whether or not one is running (§12.8).
+- **A launch's snapshot** (§12.7). After each run and poll the window asks the server for a snapshot to open (`Server::take_request`) and posts its path to itself (`WM_APP_DEBUG_SNAPSHOT`). After the tick, `snapshots::open_for_debugger` opens it as a snapshot from Explorer is opened, the changed disks asked about first, but leaves the jump list alone; the server hears whether it opened at once, or at the next tick if the window's state is busy (`Server::snapshot_opened`). A snapshot asked for while the save alert is open is reported as not opened.
+- **Size.** `Juku.exe` went from 642 560 to 771 072 bytes (release build, this PC's CPU), 126 KB more. By the linker map, the server's own functions are about 85 KB of it; the rest is std's sockets and the core's debugging loop (§12.4). That is more than the tens of kilobytes §12.1 aims at, and has not been looked into yet. The server's `opt-level = "s"` (§3.1) applies to its crate before link-time optimization, which runs at the app's level.
+- **Checked** (release build, Windows 11 build 26300, with a DAP client in Python on the socket; `Juku.ini` and Quick Save copied before and put back after):
+  - Started with `--debug-server=5199`: after `initialize` and `attach`, `pause` brought `stopped` 10 ms after the connection, at D9CCh. Twenty instruction steps (`next` and its `stopped`) took 4.2 ms each on average and 4.6 ms at most. The title read `Juku — Debugging · Paused` while stopped, `Juku — Debugging` once continued, and `Juku` after `disconnect`.
+  - A launch of a 7-byte program with `reset` and `stopOnEntry` stopped at its entry, 0100h, 2.2 s after `configurationDone`; it stepped, restarted to the entry, and ended at MONITOR with `exited` (0) and `terminated`. A launch from a snapshot taken at the prompt stopped at the entry 6 ms after `configurationDone`, and again after a restart.
+  - With Juku running and Accept Connections off, a second start with `--debug-server=5198` exited, and the running Juku took a client on 5198.
+  - Accept Connections in Settings started and stopped the server on 5104. With 5104 held by another program, ticking it showed the alert.
+
 ---
 
 ## 12. Guest debugger
 
-Status: built in the Mac app: the core's part, the server, debugging from source with the assembler's debug information, launching a program into memory, watchpoints, expressions, conditional breakpoints, log points, the device and symbol views and the system's symbols, and launching from a snapshot with restart. The Windows app has no server yet. This section is the plan, with "as built" notes, as in §11.
+Status: built in the Mac app: the core's part, the server, debugging from source with the assembler's debug information, launching a program into memory, watchpoints, expressions, conditional breakpoints, log points, the device and symbol views and the system's symbols, and launching from a snapshot with restart; the Windows app has it too (§11.8). This section is the plan, with "as built" notes, as in §11.
 
 The emulator is a debug server. A client connects to it and stops, steps and inspects the emulated machine: the CPU, memory, ports and devices. The client is VS Code, through a small extension, which makes it a development environment for Juku programs: breakpoints and stepping in `.asm` files assembled with debug information. Anything else on the machine (the ROMs, EKDOS, programs from disks) is debugged by instruction, in VS Code's Disassembly view.
 
@@ -1182,6 +1199,7 @@ The emulator is a debug server. A client connects to it and stops, steps and ins
   - registers, flags, memory, the call stack and the devices' state, and changing them
   - loading a program into memory and starting it, with its symbols and line numbers
 - **Mac first**; the Windows app follows.
+  - *As built:* the Windows app has the server too (§11.8).
 - **Not planned:** more than one client at a time, reverse stepping (snapshots could give it later), a debugger window in the app.
 - **Postponed:** a full-screen terminal client (§12.9), until VS Code has been used for a while.
 - **Three rules** for every part of it:
@@ -1206,6 +1224,7 @@ VS Code + extension ──DAP, TCP 127.0.0.1──► emulation thread, every ti
 | Debug information | `../juku-sdk/crates/asm`, crate `juku-asm` | The assembler writes a `.dbg` file beside the image: load address, entry, symbols, line table (§12.6) |
 
 - **Linking on the Mac.** The app links one Rust static library, since two would each bring their own std. `juku-dap` is that library (`crate-type = ["staticlib", "rlib"]`), with the core in it as an rlib, and `build.sh` links `libjuku_dap.a` in place of `libjuku.a`. The core's C ABI (§5) comes along: a static library exports the `#[no_mangle]` functions of every crate in it (checked: the app links with it).
+- **On Windows** the app is Rust: `juku-windows` depends on `juku-dap` as a crate and calls `Server` (§11.8). The static library and its C ABI are the Mac's.
 - **No external crates in the server.**
   - *JSON:* `serde_json` with `serde`'s derive is good code, but brings `syn`, `quote` and `proc-macro2` to the build and a generic (de)serializer for each message type to the binary. DAP needs a value tree, a parser and a writer: about 400 lines with the string escapes and UTF-16 surrogate pairs, in `juku-dap`'s `json.rs`, tested against the cases of RFC 8259.
   - *Base64* for `readMemory` and `writeMemory`: about 40 lines.
@@ -1219,7 +1238,7 @@ VS Code + extension ──DAP, TCP 127.0.0.1──► emulation thread, every ti
 ### 12.3 Connection
 - **On 127.0.0.1 only,** port 5104 by default. Nothing outside the computer can reach it, which matters since a client can write any byte of memory; and the macOS firewall does not ask.
 - **Off by default.** Settings → Machine gets an Accept Debugger Connections checkbox with the port. `--debug-server[=port]` on the command line turns it on for that run; that is how the extension starts the app (§12.8).
-  - *As built:* the Machine pane's last row is Debugger: Accept Connections (`AcceptDebugger`), with a note naming the port: "VS Code and other DAP clients connect on port 5104, from this Mac only." The port (`DebuggerPort`, 5104) has no control of its own: `defaults write io.github.sinijarv-juku.juku-emu DebuggerPort <n>` changes it, and `--debug-server=<n>` uses another for one run. A port that cannot be had is reported once, in an alert ("The debugger cannot listen on port %d.").
+  - *As built:* the Machine pane's last row is Debugger: Accept Connections (`AcceptDebugger`), with a note naming the port: "VS Code and other DAP clients connect on port 5104, from this Mac only." The port (`DebuggerPort`, 5104) has no control of its own: `defaults write io.github.sinijarv-juku.juku-emu DebuggerPort <n>` changes it, and `--debug-server=<n>` uses another for one run. A port that cannot be had is reported once, in an alert ("The debugger cannot listen on port %d."). The Windows app has the same row, its port in `Juku.ini` (§11.8).
 - **One client at a time.** A second connection is closed at once, and the extension says the emulator is already being debugged.
 - **The subtitle** shows Debugging while a client is connected, before Paused and Warp Speed (§6.2): "Debugging · Paused".
 - **Messages** are DAP's: a `Content-Length: n` header and a JSON body.
@@ -1369,7 +1388,7 @@ It runs on the emulation thread, with the `Machine`, between `run_cycles` calls.
   - **No safe point** within ten seconds of the machine's time: an `output` event in the `important` category, which VS Code shows as a notice ("The machine is not at a prompt: …"), and `terminated`. Nothing is written.
   - `reset: true` power cycles the machine at `configurationDone`, so the program starts at the monitor's prompt 2 s later.
 - **As built:**
-  - **A snapshot** (`snapshot`) is opened by the host, as the user would open it, so that the app's own state follows: the ROM and expansion ROM settings, the disks and their names, the question about a changed disk. At `configurationDone` the session asks for it (`Server::take_request`; on the Mac `juku_dap_snapshot_request`), the app opens it after the tick (`openSnapshotForDebugger:`, the path Finder's Open takes) and answers (`juku_dap_snapshot_opened`); then the wait for a safe point begins. A snapshot that does not open, or whose opening the user cancels, ends the launch with "The snapshot was not opened".
+  - **A snapshot** (`snapshot`) is opened by the host, as the user would open it, so that the app's own state follows: the ROM and expansion ROM settings, the disks and their names, the question about a changed disk. At `configurationDone` the session asks for it (`Server::take_request`; on the Mac `juku_dap_snapshot_request`; on Windows §11.8), the app opens it after the tick (`openSnapshotForDebugger:`, the path Finder's Open takes) and answers (`juku_dap_snapshot_opened`); then the wait for a safe point begins. A snapshot that does not open, or whose opening the user cancels, ends the launch with "The snapshot was not opened".
   - **Restart** (`supportsRestartRequest`) launches again with the settings VS Code sends, or those of the launch: the program and its debug information are read again, line breakpoints found again in it, and the machine brought back to a prompt by opening the snapshot again, or power cycling for `reset`. Without either the program runs where no prompt comes, so the restart is refused and says why. The session and its breakpoints and watchpoints stay.
   - **Checked:** in tests, a program launched from a snapshot taken at the prompt, into a machine that had run on and had a key typed, stopped at its entry; two restarts, each after a step into the program, stopped at the entry with the machine the same to the byte (its snapshot) and at the same cycle. In the app, a launch from a snapshot stopped at its entry 17 ms after it was asked, at cycle 6 000 368, and twice again after restarts. (The app's settings, which opening a snapshot changes, were saved before and put back after: `defaults export` and `import`.)
   - **Checked:** a program assembled with `-g` and launched under EKDOS 2.30 (booted from `jukprog1.juk`) stopped at its entry, at its first line of source, ran, and left through `JMP 0`, which sent `exited` and `terminated`; `A>` came back 1.6 s later. In the app, started as the extension starts it (`open -a … --args --debug-server=5199`), a program launched at the monitor's prompt stopped at its entry 0.1 s after `configurationDone` and ended at MONITOR.
@@ -1380,6 +1399,7 @@ It runs on the emulation thread, with the `Machine`, between `run_cycles` calls.
   - *As built:* the language (`;` comments, no grammar yet), its breakpoints, `debugInfo` in the attach settings and a snippet with it.
   - *As built:* the TextMate grammar (`syntaxes/juku-asm.tmLanguage.json`): comments, labels with a colon or in the first column, strings, the assembler's directives, the 8080's mnemonics and registers, HIGH and LOW, numbers and operators. The launch settings with their descriptions, and snippets for launch and attach.
 - **Connects** with a `DebugAdapterServer` for 127.0.0.1 and the port (`juku.port`, 5104 by default). If nothing listens, it starts the app with `--debug-server` (`open -a`, with `juku.app` naming the app, `Juku` by default) and tries again for 10 s.
+  - *As built* on Windows: it starts `Juku.exe` with `--debug-server=<port>`. For `juku.app`'s default, `Juku`, it takes the copy the installer puts in `%LOCALAPPDATA%\Programs\Juku` if there is one, and otherwise leaves Windows to find `Juku` on the PATH; the setting can name another `Juku.exe` by its path. A Juku already running takes the port from that start (§11.8), so Accept Connections need not be ticked there, and the error after 10 s says only to set `juku.app`.
   - *As built:* it looks by connecting and closing at once. The server takes such a client and drops it at its next poll; a client that comes right behind it is not turned away for it, because a client that has gone is let go before a new one is looked at (`a_probe_and_then_a_client`). After 10 s the error says to tick Accept Connections in a Juku already running, or to quit it: `open -a` passes no arguments to an app that runs.
 - **The devices** show as the Devices scope. If that proves clumsy, a webview panel fed by a custom request (`juku/devices`) can come later.
 - **No packages.** The extension is one JavaScript file against VS Code's API, `extension.js`, with no build step: TypeScript would bring `typescript` and `@types/vscode` to check a few dozen lines. Nothing from npm is in the extension, nor needed to package it (below). `@vscode/debugadapter` is not needed, since the emulator is the adapter.

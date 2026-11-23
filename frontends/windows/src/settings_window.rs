@@ -1,9 +1,10 @@
 //! The Settings window (frontends/macos/src/SettingsWindow.m, spec §6.7,
 //! §7.3a, §11.5): the Mac's panes, General (mouse, sound, language and
-//! Windows' file types), Display (the CRT) and Machine (the ROMs and the T3.2
-//! clock), as the tabs of a tab control, each a simple form built in code
-//! with no dialog template. Changes apply at once; the window and the menus
-//! stay in step through `crate::settings_changed`, which calls `refresh`.
+//! Windows' file types), Display (the CRT) and Machine (the ROMs, the T3.2
+//! clock and the debugger), as the tabs of a tab control, each a simple form
+//! built in code with no dialog template. Changes apply at once; the window
+//! and the menus stay in step through `crate::settings_changed`, which calls
+//! `refresh`.
 //!
 //! The window is created the first time it is shown and hidden when closed,
 //! so it opens where it was, on the pane it showed. It is owned by the
@@ -76,10 +77,13 @@ enum Control {
     /// they open in this copy of Juku.
     RegisterFiles,
     FilesNote,
+    /// The note under Accept Connections, which names the port.
+    DebuggerNote,
 }
 
 const FILES_NOTE: &str = "Lets Explorer open .juk images and .jukusnap snapshots in Juku, and show snapshots' pictures.";
 const FILES_REGISTERED_NOTE: &str = "Explorer opens .juk images and .jukusnap snapshots in this copy of Juku.";
+const DEBUGGER_NOTE: &str = "VS Code and other DAP clients connect on port %ld, from this PC only.";
 
 struct Row {
     pane: usize,
@@ -100,7 +104,7 @@ const KEY_CLICK_NOTE: &str = "This ROM's key click cannot be changed.";
 
 // The rows of SettingsWindow.m's panes, in its order, with Windows' own at
 // the end of General.
-const ROWS: [Row; 26] = [
+const ROWS: [Row; 28] = [
     Row { pane: GENERAL, label: Some("Mouse Speed:"), control: Control::Slider(MOUSE_SENSITIVITY, 0.1, 2.0), extra: 0 },
     Row { pane: GENERAL, label: Some("Sound:"), control: Control::Check(KEY_CLICK, "Key Click", true), extra: 12 },
     Row { pane: GENERAL, label: None, control: Control::Note(KEY_CLICK_NOTE), extra: -4 },
@@ -127,7 +131,16 @@ const ROWS: [Row; 26] = [
     Row { pane: MACHINE, label: None, control: Control::Note("Start it with A at the * prompt. Changing it restarts the machine."), extra: -4 },
     Row { pane: MACHINE, label: Some("Timer T3.2:"), control: Control::Check(T32_FAST_CLOCK, "Clock at 1.23 MHz", false), extra: 12 },
     Row { pane: MACHINE, label: None, control: Control::Note("RDEM needs it. The RomBios stopwatch then runs too fast."), extra: -4 },
+    Row { pane: MACHINE, label: Some("Debugger:"), control: Control::Check(ACCEPT_DEBUGGER, "Accept Connections", false), extra: 12 },
+    Row { pane: MACHINE, label: None, control: Control::DebuggerNote, extra: -4 },
 ];
+
+/// The note under Accept Connections, with the port that `DebuggerPort`
+/// sets (spec §12.3).
+fn debugger_note() -> String {
+    let port = settings::debugger_port().map_or_else(String::new, |p| p.to_string());
+    localized(DEBUGGER_NOTE).replace("%ld", &port)
+}
 
 /// The row that holds `control`.
 fn row_of(control: Control) -> usize {
@@ -362,7 +375,7 @@ fn create(owner: HWND) -> Option<HWND> {
             Control::RegisterFiles => {
                 create_control(hwnd, w!("BUTTON"), localized("Register File Types"), BS_PUSHBUTTON as u32 | WS_TABSTOP.0, id)
             }
-            Control::FilesNote => create_control(hwnd, w!("STATIC"), "", SS_LEFT | SS_NOPREFIX, id),
+            Control::FilesNote | Control::DebuggerNote => create_control(hwnd, w!("STATIC"), "", SS_LEFT | SS_NOPREFIX, id),
         };
         controls.push(control);
     }
@@ -445,7 +458,7 @@ fn apply_theme() {
             let kind = match spec.control {
                 Control::Check(..) | Control::RestoreCrt | Control::RegisterFiles => ControlKind::Explorer,
                 Control::SystemRom | Control::ExpansionRom | Control::Language | Control::Appearance => ControlKind::ComboBox,
-                Control::Slider(..) | Control::Note(_) | Control::FilesNote => ControlKind::Plain,
+                Control::Slider(..) | Control::Note(_) | Control::FilesNote | Control::DebuggerNote => ControlKind::Plain,
             };
             theme::apply_control(w.controls[row], kind);
         }
@@ -592,7 +605,7 @@ fn set_fonts() {
         };
 
         for (row, spec) in ROWS.iter().enumerate() {
-            let font = if matches!(spec.control, Control::Note(_) | Control::FilesNote) { w.note_font } else { w.font };
+            let font = if matches!(spec.control, Control::Note(_) | Control::FilesNote | Control::DebuggerNote) { w.note_font } else { w.font };
             send(w.controls[row], WM_SETFONT, font.0 as usize, 1);
 
             if let Some(label) = w.labels[row] {
@@ -641,7 +654,7 @@ fn layout(hwnd: HWND, center: bool) {
                 }
                 Control::RegisterFiles => ((text(w.font, localized("Register File Types")).0 + s(24)).max(s(88)), text_height + s(10)),
                 // Below, once the column's width is known.
-                Control::Note(_) | Control::FilesNote => (0, 0),
+                Control::Note(_) | Control::FilesNote | Control::DebuggerNote => (0, 0),
             };
             sizes.push(size);
         }
@@ -652,12 +665,13 @@ fn layout(hwnd: HWND, center: bool) {
         let column_width = sizes.iter().map(|&(w, _)| w).max().unwrap_or(0).max(s(NOTE_WIDTH));
 
         for (row, spec) in ROWS.iter().enumerate() {
-            let notes: &[&str] = match spec.control {
-                Control::Note(note) => &[note],
-                Control::FilesNote => &[FILES_NOTE, FILES_REGISTERED_NOTE],
+            let notes: Vec<String> = match spec.control {
+                Control::Note(note) => vec![localized(note).to_string()],
+                Control::FilesNote => vec![localized(FILES_NOTE).to_string(), localized(FILES_REGISTERED_NOTE).to_string()],
+                Control::DebuggerNote => vec![debugger_note()],
                 _ => continue,
             };
-            let height = notes.iter().map(|n| wrapped_height(dc, w.note_font, localized(n), column_width)).max().unwrap_or(0);
+            let height = notes.iter().map(|n| wrapped_height(dc, w.note_font, n, column_width)).max().unwrap_or(0);
             sizes[row] = (column_width, height);
         }
 
@@ -803,6 +817,9 @@ pub fn refresh() {
                 Control::FilesNote => {
                     let note = if crate::file_types::registered_here() { FILES_REGISTERED_NOTE } else { FILES_NOTE };
                     let _ = unsafe { SetWindowTextW(control, &HSTRING::from(localized(note))) };
+                }
+                Control::DebuggerNote => {
+                    let _ = unsafe { SetWindowTextW(control, &HSTRING::from(debugger_note())) };
                 }
                 _ => {}
             }
@@ -1057,7 +1074,7 @@ fn close(hwnd: HWND) {
 /// The notes are gray, as secondary text.
 fn is_note(control: HWND) -> bool {
     let id = unsafe { GetDlgCtrlID(control) };
-    ROWS.get((id - FIRST_ID) as usize).is_some_and(|r| matches!(r.control, Control::Note(_) | Control::FilesNote))
+    ROWS.get((id - FIRST_ID) as usize).is_some_and(|r| matches!(r.control, Control::Note(_) | Control::FilesNote | Control::DebuggerNote))
 }
 
 /// True for the label of a disabled control, which is grayed with it, as

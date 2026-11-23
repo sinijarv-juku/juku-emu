@@ -486,6 +486,12 @@ fn open(owner: HWND, file: Option<Vec<u8>>, path: &Path) -> bool {
 }
 
 /// Opens the snapshot at `path`: from Explorer, a drop, or the dialog.
+/// A debugger's launch asks for the snapshot (spec §12.7): it is opened as
+/// one from Explorer is, but not added to the jump list. True if it opened.
+pub fn open_for_debugger(owner: HWND, path: &Path) -> bool {
+    open(owner, std::fs::read(path).ok(), path)
+}
+
 pub fn open_path(owner: HWND, path: &Path) {
     if open(owner, std::fs::read(path).ok(), path) {
         recent_disks::add_to_jump_list(path);

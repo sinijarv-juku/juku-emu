@@ -133,6 +133,7 @@
 "Disks have unsaved changes." = "Disks have unsaved changes.";
 "Insert in A:" = "Insert in A:";
 "Insert in B:" = "Insert in B:";
+"VS Code and other DAP clients connect on port %ld, from this PC only." = "VS Code and other DAP clients connect on port %ld, from this PC only.";
 
 /* Menu titles with their underlined letters: "&" marks the letter (spec section 11.3) */
 "&Juku" = "&Juku";

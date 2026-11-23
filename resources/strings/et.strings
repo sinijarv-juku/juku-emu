@@ -133,6 +133,7 @@
 "Disks have unsaved changes." = "Ketastel on salvestamata muudatusi.";
 "Insert in A:" = "Sisesta seadmesse A:";
 "Insert in B:" = "Sisesta seadmesse B:";
+"VS Code and other DAP clients connect on port %ld, from this PC only." = "VS Code ja teised DAP-kliendid ühenduvad pordil %ld, ainult sellest arvutist.";
 
 /* Menu titles with their underlined letters: "&" marks the letter (spec section 11.3) */
 "&Juku" = "&Juku";

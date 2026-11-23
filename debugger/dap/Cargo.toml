@@ -1,6 +1,6 @@
 # The debug server (spec §12): DAP over TCP. The Mac app links this crate's
-# static library, which holds the core and its C ABI too (§12.2). The
-# Windows app has no server yet.
+# static library, which holds the core and its C ABI too (§12.2); the
+# Windows app depends on it as a Rust crate, through the rlib.
 
 [package]
 name = "juku-dap"

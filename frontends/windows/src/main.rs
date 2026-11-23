@@ -528,14 +528,38 @@ pub fn open_file(owner: HWND, path: &Path, drive: usize) {
 /// the machine, the picture and the Settings window follow them. What could
 /// not be applied is reported over `owner`.
 pub fn settings_changed(owner: HWND) {
-    let alerts = emu_window::with_emu(|emu| emu.apply_settings());
+    let applied = emu_window::with_emu(|emu| (emu.apply_settings(), emu.apply_debugger()));
 
-    if alerts.is_none() {
+    if applied.is_none() {
         log!("settings changed while the window was busy");
     }
 
+    let (alerts, taken) = applied.unwrap_or_default();
     settings_window::refresh();
-    show_alerts(owner, alerts.unwrap_or_default());
+    show_alerts(owner, alerts);
+
+    if let Some(port) = taken {
+        show_debugger_port_alert(owner, port);
+    }
+}
+
+/// The debug server could not listen on `port` (spec §12.3): reported once
+/// for each port, with the Mac's message and note.
+pub fn show_debugger_port_alert(owner: HWND, port: u16) {
+    let message = localized("The debugger cannot listen on port %d.").replace("%d", &port.to_string());
+
+    let _ = unsafe {
+        TaskDialog(
+            Some(owner),
+            None,
+            &HSTRING::from(localized("Window")),
+            &HSTRING::from(message),
+            &HSTRING::from(localized("Another program may be using it.")),
+            TDCBF_OK_BUTTON,
+            TD_ERROR_ICON,
+            None,
+        )
+    };
 }
 
 /// Machine → System ROM → Other…, and the same item in Settings. The file is
@@ -707,11 +731,39 @@ pub fn command(hwnd: HWND, id: u16) {
 // A second start hands its file to the first and exits (§11.2), as Finder
 // sends a file to the running app on the Mac.
 
-/// `WM_COPYDATA` kind: a file to open, as UTF-16.
+/// `WM_COPYDATA` kinds: a file to open, as UTF-16, and the port of
+/// `--debug-server`, a `u16`.
 pub const COPYDATA_OPEN: usize = 1;
+pub const COPYDATA_DEBUG_SERVER: usize = 2;
 
-/// True if Juku is running already; `file` has then been handed to it.
-fn hand_over(file: Option<&Path>) -> bool {
+/// What the command line holds: a file to open (a disk image or a snapshot
+/// from Explorer) and the port of `--debug-server` or
+/// `--debug-server=<port>`, 0 without it (spec §12.3). Without a port of its
+/// own, `--debug-server` takes the setting's.
+fn command_line() -> (Option<PathBuf>, u16) {
+    let mut file = None;
+    let mut port = 0;
+
+    for arg in std::env::args_os().skip(1) {
+        match arg.to_str() {
+            Some("--debug-server") => port = settings::debugger_port().unwrap_or(0),
+            Some(a) if a.starts_with("--debug-server=") => port = a[15..].parse().unwrap_or(0),
+            _ if file.is_none() => file = Some(PathBuf::from(arg)),
+            _ => {}
+        }
+    }
+
+    (file, port)
+}
+
+fn copy_data(hwnd: HWND, kind: usize, data: &[u8]) {
+    let data = COPYDATASTRUCT { dwData: kind, cbData: data.len() as u32, lpData: data.as_ptr() as *mut _ };
+    unsafe { SendMessageW(hwnd, WM_COPYDATA, None, Some(LPARAM(&raw const data as isize))) };
+}
+
+/// True if Juku is running already; `file` and the debug server's port, if
+/// any, have then been handed to it.
+fn hand_over(file: Option<&Path>, debug_port: u16) -> bool {
     // The mutex lives as long as the process: it marks the running Juku.
     let created = unsafe { CreateMutexW(None, false, w!("Local\\io.github.sinijarv-juku.juku-emu")) };
 
@@ -723,13 +775,12 @@ fn hand_over(file: Option<&Path>) -> bool {
     for _ in 0..30 {
         if let Ok(hwnd) = unsafe { FindWindowW(emu_window::CLASS_NAME, None) } {
             if let Some(file) = file {
-                let text: Vec<u16> = file.as_os_str().encode_wide().collect();
-                let data = COPYDATASTRUCT {
-                    dwData: COPYDATA_OPEN,
-                    cbData: (text.len() * 2) as u32,
-                    lpData: text.as_ptr() as *mut _,
-                };
-                unsafe { SendMessageW(hwnd, WM_COPYDATA, None, Some(LPARAM(&raw const data as isize))) };
+                let text: Vec<u8> = file.as_os_str().encode_wide().flat_map(u16::to_ne_bytes).collect();
+                copy_data(hwnd, COPYDATA_OPEN, &text);
+            }
+
+            if debug_port != 0 {
+                copy_data(hwnd, COPYDATA_DEBUG_SERVER, &debug_port.to_ne_bytes());
             }
 
             unsafe {
@@ -862,10 +913,11 @@ fn main() {
         _ => {}
     }
 
-    // A file to open: a disk image from Explorer or the command line.
-    let file = std::env::args_os().nth(1).map(PathBuf::from);
+    // A file to open: a disk image from Explorer or the command line. And
+    // `--debug-server`, as VS Code's extension starts Juku (spec §12.8).
+    let (file, debug_port) = command_line();
 
-    if hand_over(file.as_deref()) {
+    if hand_over(file.as_deref(), debug_port) {
         return;
     }
 
@@ -904,6 +956,11 @@ fn main() {
     });
 
     show_alerts(hwnd, alerts);
+
+    // The debug server, as the setting or the command line says.
+    if let Some(Some(port)) = emu_window::with_emu(|emu| emu.set_debug_server_argument(debug_port)) {
+        show_debugger_port_alert(hwnd, port);
+    }
 
     // An image opened with the app goes into A:, replacing the restored one;
     // a snapshot is opened.

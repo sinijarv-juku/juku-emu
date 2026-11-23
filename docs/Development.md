@@ -131,9 +131,9 @@ Neither is signed. To run it anyway, start it by hand:
 
 ## Debugging Juku programs
 
-The Mac app is a debug server: it speaks the Debug Adapter Protocol (DAP)
-on `127.0.0.1`, port 5104, and VS Code connects to it through juku-sdk's
-extension. A program can be launched from VS Code, stopped, stepped by
+Juku is a debug server, on macOS and Windows: it speaks the Debug Adapter
+Protocol (DAP) on `127.0.0.1`, port 5104, and VS Code connects to it
+through juku-sdk's extension. A program can be launched from VS Code, stopped, stepped by
 source line or by instruction, and its registers, memory, ports and
 devices looked at; breakpoints take conditions, hit counts and log
 messages, and watchpoints stop on a symbol's or a port's reads and writes.
@@ -176,11 +176,18 @@ messages, and watchpoints stop on a symbol's or a port's reads and writes.
    `defaults write io.github.sinijarv-juku.juku-emu DebuggerPort <n>` moves
    it to another port.
 
+   On Windows the extension starts `Juku.exe` from where the installer
+   puts it, or the one its `juku.app` setting names, such as
+   `D:\juku-emu\target\windows\Juku.exe`. A Juku already running there
+   takes the port from the new start, so it needs no setting. The port
+   is `DebuggerPort` in `%LOCALAPPDATA%\Juku\Juku.ini`, under
+   `[Settings]`, changed while Juku is not running.
+
 The extension's
 [README](https://github.com/sinijarv-juku/juku-sdk/blob/main/vscode/README.md)
 has the launch and attach settings, expressions and watchpoints; the
-server is described in [Emulator_spec.md](Emulator_spec.md) §12. The
-Windows app has no debug server yet.
+server is described in [Emulator_spec.md](Emulator_spec.md) §12, and the
+Windows app's part of it in §11.8.
 
 ## Versions
 

@@ -14,6 +14,8 @@ test = false
 
 [dependencies]
 juku = { path = "../../core" }
+# The debug server (spec §12), called through its Rust API as the core is.
+juku-dap = { path = "../../debugger/dap" }
 # The `implement` macro, for COM objects of the app's own, names this crate.
 windows-core = "=0.62.2"
 

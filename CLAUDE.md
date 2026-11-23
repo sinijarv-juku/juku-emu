@@ -13,7 +13,8 @@ macOS and Windows.
   VS Code extension that connects to it is juku-sdk's (`../juku-sdk/vscode`,
   the extension `juku`): its launch settings are what the server takes, so
   a change to them goes into both. The Mac app links `juku-dap`'s static
-  library, which holds the core and its C ABI too.
+  library, which holds the core and its C ABI too; the Windows app uses
+  the crate's Rust API, as it uses the core's.
 - The assembler, `juku-asm`, is part of juku-sdk, a repository of its own
   beside this one (`../juku-sdk`, crate `crates/asm`): a command, and a
   library the debug server's tests assemble the demos with. The server

@@ -27,7 +27,7 @@ RomBios in ROM and EKDOS, a CP/M compatible system, on 5.25" floppies.
   ROMs, such as JBASIC, can be loaded.
 - **Input:** the Juku keyboard layout mapped by key position, including
   the Estonian letters, and the Juku mouse.
-- **Debugger:** debugging of Juku programs in VS Code, on macOS only (see
+- **Debugger:** debugging of Juku programs in VS Code (see
   [Development](docs/Development.md#debugging-juku-programs)).
 - **Languages:** English and Estonian user interface.
 
@@ -103,7 +103,7 @@ such as JBASIC; type `A` at the `*` prompt to start it.
 key click, the drive sounds and their volume), the language and, on
 Windows, light or dark mode. Display: the CRT effects and the picture's
 look. Machine: the system ROM, the expansion ROM, the speed of the timer
-some programs need (RDEM, for one) and, on the Mac, the debugger.
+some programs need (RDEM, for one) and the debugger.
 
 ## More
 

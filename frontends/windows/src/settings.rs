@@ -38,6 +38,8 @@ pub const SYSTEM_ROM: &str = "SystemROM"; // bundled ROM name or file path (roms
 pub const SYSTEM_ROM_FILE: &str = "SystemROMFile"; // the user's last ROM file, a path
 pub const EXPANSION_ROM: &str = "ExpansionROM"; // path of the plugged-in expansion ROM; absent = none
 pub const EXPANSION_ROM_FILE: &str = "ExpansionROMFile"; // the user's last expansion ROM file
+pub const ACCEPT_DEBUGGER: &str = "AcceptDebugger"; // the debug server listens (spec §12.3)
+pub const DEBUGGER_PORT: &str = "DebuggerPort"; // its TCP port on 127.0.0.1; no control of its own
 pub const LANGUAGE: &str = "Language"; // "en" or "et"; absent = the system's (§11.4)
 pub const APPEARANCE: &str = "Appearance"; // "light" or "dark"; absent = Windows' setting (§11.5)
 
@@ -46,6 +48,7 @@ pub const APPEARANCE: &str = "Appearance"; // "light" or "dark"; absent = Window
 pub const CRT_SLIDERS: [&str; 6] = [CRT_CURVATURE, CRT_SCANLINES, CRT_GLOW, CRT_BACKGROUND, CRT_FRAME, CRT_BRIGHTNESS];
 
 pub const DEFAULT_MOUSE_SENSITIVITY: f64 = 0.5;
+pub const DEFAULT_DEBUGGER_PORT: u16 = 5104;
 
 // Keys of the Window section: the window's frame (the Mac's "NSWindow Frame
 // Juku"), as `left,top,right,bottom` of its normal position, and whether it
@@ -241,6 +244,11 @@ pub fn crt_settings() -> CrtSettings {
         bezel3d: bool_setting(CRT_BEZEL_3D, d.bezel3d),
         brightness: f32_setting(CRT_BRIGHTNESS, d.brightness),
     }
+}
+
+/// `DebuggerPort`, 5104 by default; None if it is not a port.
+pub fn debugger_port() -> Option<u16> {
+    get(SECTION_SETTINGS, DEBUGGER_PORT).map_or(Some(DEFAULT_DEBUGGER_PORT), |v| v.parse().ok().filter(|&p| p > 0))
 }
 
 /// Hands the drive sounds' settings to the machine (spec §4.5).
