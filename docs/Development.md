@@ -87,11 +87,26 @@ so this applies to juku-emu, and a relative path is taken from the folder
 holding `.cargo`. Without the file, or in a clone elsewhere, the release
 named by the tag is used.
 
-While the patch is in place, `Cargo.lock` names the local copy instead of
-the release. Leave that change out of commits.
-`build.sh` then warns that the patch "was not used in the crate graph":
-that is the standard library's own build (`-Z build-std`), which the patch
-applies to as well, and it does no harm.
+Cargo keeps the versions `Cargo.lock` names, and the committed one names
+the release. The local copy usually has another version (the next one with
+`-dev`), so the patch is not used until the lock file is updated to take
+it, in `juku-emu`:
+
+```sh
+cargo update juku-asm juku-i8080
+```
+
+Until then cargo builds the release, warns that the patch "was not used in
+the crate graph", and adds `[[patch.unused]]` entries to `Cargo.lock`.
+Check which copy is used with `cargo tree -p juku-dap -e dev -i juku-asm`.
+Run the update again after juku-sdk's version changes, or after
+`Cargo.lock` is restored from git.
+
+While the patch is in use, `Cargo.lock` names the local copy instead of the
+release. Leave that change out of commits. `build.sh` and `build.cmd` still
+warn that the patch was not used: that is the standard library's own build
+(`-Z build-std`), which the patch applies to as well, and it does no
+harm.
 
 ## Tests
 
