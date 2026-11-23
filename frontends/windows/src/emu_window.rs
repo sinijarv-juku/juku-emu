@@ -19,10 +19,11 @@ use juku::mouse::{BUTTON_LEFT, BUTTON_RIGHT};
 use juku::{Frame, Machine};
 use juku_dap::{Server, State};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
+use windows::Win32::Graphics::Dwm::DwmFlush;
 use windows::Win32::Graphics::Gdi::{
     BeginPaint, ClientToScreen, DEVMODEW, ENUM_CURRENT_SETTINGS, EndPaint, EnumDisplaySettingsW, GetMonitorInfoW,
     MONITOR_DEFAULTTONEAREST, MONITOR_DEFAULTTONULL, MONITORINFO, MONITORINFOEXW, MonitorFromRect, MonitorFromWindow, PAINTSTRUCT,
-    ScreenToClient,
+    RDW_FRAME, RDW_INVALIDATE, RDW_UPDATENOW, RedrawWindow, ScreenToClient,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
@@ -200,6 +201,7 @@ pub struct Emu {
     settle_until: f64,      // drawing goes on until then
     last_draw: f64,
     phosphor_time: f64,     // when the phosphor textures were last right
+    frame_stale: bool,      // the frame is painted again after the next draw
     // Keyboard: which of the two Shift and Ctrl keys are down, and Left Alt,
     // which belongs to the menus.
     shift: u8,
@@ -426,6 +428,7 @@ pub fn create(machine: Machine, disks: DiskDrives, roms: InstalledRoms, audio: O
             settle_until: now + SETTLE_SECONDS,
             last_draw: 0.0,
             phosphor_time: now,
+            frame_stale: false,
             shift: 0,
             ctrl: 0,
             left_alt: false,
@@ -751,6 +754,7 @@ impl Emu {
         let y = frame.top.min(work.bottom - h).max(work.top);
         let _ = unsafe { SetWindowPos(hwnd, None, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE) };
         self.set_needs_redraw();
+        self.frame_stale = true;
     }
 
     fn show_cursor(&mut self) {
@@ -1128,6 +1132,18 @@ impl Emu {
         }
 
         if self.renderer.draw(frame, now - self.phosphor_time, &self.crt, self.full_screen) {
+            // The first resize after startup from the View menu left the
+            // part of the menu bar the window gained showing the desktop on
+            // the screen, though screenshots showed it painted, until the
+            // frame was painted again once the desktop had been composed
+            // with the window at its new size (spec §11.5).
+            if std::mem::take(&mut self.frame_stale) {
+                unsafe {
+                    let _ = DwmFlush();
+                    let _ = RedrawWindow(Some(self.hwnd), None, None, RDW_FRAME | RDW_INVALIDATE | RDW_UPDATENOW);
+                }
+            }
+
             self.drawn_seq = frame.seq;
             self.last_draw = now;
             self.phosphor_time = now;
