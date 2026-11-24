@@ -10,13 +10,12 @@ use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream};
 use juku::Machine;
 
 use crate::json::Value;
+use crate::json::frame::take_message;
 use crate::session::{Next, Session};
 
 /// Largest message body taken, in bytes. `writeMemory` of all 64 KB is
 /// about 88 KB in base64.
 const MAX_BODY: usize = 1 << 20;
-/// Longest header taken.
-const MAX_HEADER: usize = 1024;
 /// Most output kept for a client that does not read it, as a log point in a
 /// busy loop can make: past it, the client is let go.
 const MAX_OUTPUT: usize = 16 << 20;
@@ -66,7 +65,7 @@ impl Server {
         if let Some(c) = &mut self.client {
             let open = c.read();
             while !c.closing {
-                match take_message(&mut c.input) {
+                match take_message(&mut c.input, MAX_BODY) {
                     Ok(Some(body)) => {
                         // A message that is not JSON is dropped: there is no
                         // request to answer.
@@ -75,7 +74,7 @@ impl Server {
                         }
                     }
                     Ok(None) => break,
-                    Err(()) => c.closing = true,
+                    Err(_) => c.closing = true,
                 }
             }
             c.session.update(m);
@@ -200,65 +199,5 @@ impl Client {
             }
         }
         true
-    }
-}
-
-/// Takes one message from `input` if it is all there: header lines up to an
-/// empty one, then as many bytes as `Content-Length` says. Err for a message
-/// that cannot be read.
-fn take_message(input: &mut Vec<u8>) -> Result<Option<String>, ()> {
-    let mut length = None;
-    let mut at = 0;
-    loop {
-        let Some(end) = input[at..].iter().position(|&b| b == b'\n') else {
-            return if input.len() > MAX_HEADER { Err(()) } else { Ok(None) };
-        };
-        let line = input[at..at + end].strip_suffix(b"\r").unwrap_or(&input[at..at + end]);
-        at += end + 1;
-        if line.is_empty() {
-            break;
-        }
-        let line = core::str::from_utf8(line).map_err(|_| ())?;
-        if let Some((name, value)) = line.split_once(':')
-            && name.trim().eq_ignore_ascii_case("Content-Length")
-        {
-            length = Some(value.trim().parse::<usize>().map_err(|_| ())?);
-        }
-        if at > MAX_HEADER {
-            return Err(());
-        }
-    }
-    let length = length.filter(|&n| n <= MAX_BODY).ok_or(())?;
-    if input.len() < at + length {
-        return Ok(None);
-    }
-    let body = String::from_utf8(input[at..at + length].to_vec()).map_err(|_| ())?;
-    input.drain(..at + length);
-    Ok(Some(body))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn messages() {
-        let mut input = b"Content-Length: 2\r\n\r\n{}content-length:3\nX-Other: 1\n\n[1]Content-Length: 5\r\n\r\n[1".to_vec();
-        assert_eq!(take_message(&mut input), Ok(Some("{}".into())));
-        assert_eq!(take_message(&mut input), Ok(Some("[1]".into())));
-        // Not all there yet.
-        assert_eq!(take_message(&mut input), Ok(None));
-        input.extend_from_slice(b",2]");
-        assert_eq!(take_message(&mut input), Ok(Some("[1,2]".into())));
-        assert_eq!(take_message(&mut input), Ok(None));
-        assert!(input.is_empty());
-    }
-
-    #[test]
-    fn bad_messages() {
-        for input in [&b"\r\n{}"[..], b"Content-Length: x\r\n\r\n", b"Content-Length: 99999999\r\n\r\n"] {
-            assert_eq!(take_message(&mut input.to_vec()), Err(()));
-        }
-        assert_eq!(take_message(&mut vec![b'x'; MAX_HEADER + 1]), Err(()));
     }
 }

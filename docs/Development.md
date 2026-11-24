@@ -44,9 +44,10 @@ the disk image's window.
 
 ## juku-sdk
 
-The tests use three crates of
-[juku-sdk](https://github.com/sinijarv-juku/juku-sdk): the demo programs
-`juku-demos`, which the core's raster tests and benchmark run; the
+The debug server is built on a crate of
+[juku-sdk](https://github.com/sinijarv-juku/juku-sdk), `juku-json`, JSON
+and the framing of DAP's messages, so the apps link it. The tests use three
+more: the demo programs `juku-demos`, which the core's raster tests and benchmark run; the
 assembler `juku-asm`, which the debug server's tests assemble the bounce
 demo with; and the 8080's instruction table `juku-i8080`, which they check
 the emulator's disassembler against, as they check its names against the
@@ -54,14 +55,13 @@ SDK's. They are *git dependencies* in `core/Cargo.toml` and
 `debugger/dap/Cargo.toml`:
 
 ```toml
-juku-asm = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.2.0" }
+juku-asm = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.3.0" }
 ```
 
 Cargo clones the repository itself, at the tag, into its own cache, and
 builds the crates from there; `Cargo.lock` records the commit. Nothing
 needs to be cloned beside juku-emu, but the first build needs the network.
-Cargo reads every dependency before it builds, so `build.sh` fetches the
-SDK too, though the app does not use it.
+`build.sh` and `build.cmd` fetch the SDK too, for `juku-json`.
 
 To move to a newer SDK, change the tag of every crate to the new release.
 
@@ -84,6 +84,7 @@ juku/
 juku-asm = { path = "juku-sdk/crates/asm" }
 juku-i8080 = { path = "juku-sdk/crates/i8080" }
 juku-demos = { path = "juku-sdk/crates/demos" }
+juku-json = { path = "juku-sdk/crates/json" }
 ```
 
 Cargo reads configuration files in the folders above the one it runs in,
@@ -97,7 +98,7 @@ the release. The local copy usually has another version (the next one with
 it, in `juku-emu`:
 
 ```sh
-cargo update juku-asm juku-i8080 juku-demos
+cargo update juku-asm juku-i8080 juku-demos juku-json
 ```
 
 Until then cargo builds the release, warns that the patch "was not used in

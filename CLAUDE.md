@@ -9,7 +9,8 @@ macOS and Windows.
   `core/src/ffi.rs`, and to the debug server through
   `debugger/dap/src/ffi.rs`.
 - `debugger/` is the guest debugger (spec §12): `dap/` is the crate
-  `juku-dap`, a DAP server over TCP with no dependencies but the core. The
+  `juku-dap`, a DAP server over TCP with no dependencies but the core and
+  juku-sdk's `juku-json` (JSON and the message framing, below). The
   VS Code extension that connects to it is juku-sdk's (`../juku-sdk/vscode`,
   the extension `juku`): its launch settings are what the server takes, so
   a change to them goes into both. The Mac app links `juku-dap`'s static
@@ -20,7 +21,8 @@ macOS and Windows.
   library the debug server's tests assemble the bounce demo with. The demo
   programs are juku-sdk's too (`demos/`), and the crate `juku-demos` has
   their sources and images: the core's raster tests and benchmark run
-  them. These are git dependencies on juku-sdk's GitHub repository at a
+  them. The debug server's JSON is juku-sdk's crate `juku-json`, which the
+  apps link. These are git dependencies on juku-sdk's GitHub repository at a
   release tag; `../.cargo/config.toml`, outside both repositories, patches
   in the copy beside this one (docs/Development.md, "juku-sdk").
 - `frontends/macos/` is the macOS layer in Objective-C (`src/`), with Metal

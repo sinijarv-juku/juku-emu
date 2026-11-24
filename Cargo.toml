@@ -24,6 +24,10 @@ panic = "immediate-abort"
 [profile.release.package.juku-dap]
 opt-level = "s"
 
+# The server's JSON, juku-sdk's: as the server.
+[profile.release.package.juku-json]
+opt-level = "s"
+
 [profile.dev]
 opt-level = 0
 

@@ -11,7 +11,7 @@ use crate::base64;
 use crate::expr;
 use crate::info::{Info, normal_path};
 use crate::launch::{self, CONSTAT, Program};
-use crate::json::{Value, obj};
+use crate::json::{Value, frame, obj};
 use crate::text::{dec, hex};
 
 /// The one thread a client sees.
@@ -564,11 +564,7 @@ impl Session {
     fn send(&mut self, mut message: Value) {
         self.seq += 1;
         message.set("seq", self.seq.into());
-        let body = message.to_json();
-        self.out.extend_from_slice(b"Content-Length: ");
-        self.out.extend_from_slice(dec(body.len() as i64).as_bytes());
-        self.out.extend_from_slice(b"\r\n\r\n");
-        self.out.extend_from_slice(body.as_bytes());
+        frame::write_message(&mut self.out, &message.to_json());
     }
 
     fn event(&mut self, event: &str, body: Value) {

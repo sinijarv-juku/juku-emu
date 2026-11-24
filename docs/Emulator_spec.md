@@ -1205,6 +1205,7 @@ The emulator is a debug server. A client connects to it and stops, steps and ins
 - **Three rules** for every part of it:
   - **No cost without a client.** With the server off, or on with no client connected, the emulator runs the code it runs today: nothing is added per instruction or per memory access (§12.4).
   - **Few dependencies.** Each crate or package is weighed for what it brings, its quality and its size. Where one is a large answer to a simple need (JSON, base64), the parts needed are written here instead. The server has no dependencies but the core and std.
+    - *As built:* and juku-sdk's `juku-json`, the JSON written here for the server, which moved to juku-sdk for its language server to share (§12.2).
   - **A small app.** The Mac app's executable was 246 KB before the debugger. The debugger should add tens of kilobytes, not hundreds; and the executable's size is measured as it grows (§12.4).
 
 ### 12.2 Pieces
@@ -1219,7 +1220,8 @@ VS Code + extension ──DAP, TCP 127.0.0.1──► emulation thread, every ti
 |---|---|---|
 | Debug hooks | `core/src/debug.rs` | Breakpoints, watchpoints, steps, stop reasons and the shadow call stack (§12.4), in the run loop. No dependencies and no OS APIs, like the rest of the core |
 | Disassembler | `core/src/cpu/disasm.rs` | Intel mnemonics, one instruction at a time with its length; checked against juku-sdk's instruction table |
-| DAP server | `debugger/dap/`, crate `juku-dap` | The messages, the session (§12.5), debug information (§12.6), the TCP listener. Depends on the core only (below) |
+| DAP server | `debugger/dap/`, crate `juku-dap` | The messages, the session (§12.5), debug information (§12.6), the TCP listener. Depends on the core and `juku-json` only (below) |
+| JSON | `../juku-sdk/crates/json`, crate `juku-json` | JSON values, their parser and writer, and the `Content-Length` framing of DAP's messages; juku-sdk's language server uses it too |
 | VS Code extension | `../juku-sdk/vscode/`, extension `juku` | The debug type `juku` and its settings, the `.asm` language; connects to the server and starts the app (§12.8). JavaScript |
 | Debug information | `../juku-sdk/crates/asm`, crate `juku-asm` | The assembler writes a `.dbg` file beside the image: load address, entry, symbols, line table (§12.6) |
 
@@ -1227,6 +1229,7 @@ VS Code + extension ──DAP, TCP 127.0.0.1──► emulation thread, every ti
 - **On Windows** the app is Rust: `juku-windows` depends on `juku-dap` as a crate and calls `Server` (§11.8). The static library and its C ABI are the Mac's.
 - **No external crates in the server.**
   - *JSON:* `serde_json` with `serde`'s derive is good code, but brings `syn`, `quote` and `proc-macro2` to the build and a generic (de)serializer for each message type to the binary. DAP needs a value tree, a parser and a writer: about 400 lines with the string escapes and UTF-16 surrogate pairs, in `juku-dap`'s `json.rs`, tested against the cases of RFC 8259.
+    - *As built:* it moved to juku-sdk as the crate `juku-json`, with the message framing, since juku-sdk's language server reads and writes the same JSON in the same framing (LSP's is DAP's), and a fix is then made once. The server takes it as a git dependency at a release tag, as its tests take juku-sdk's other crates (docs/Development.md, "juku-sdk"), and has it as `juku_dap::json`. It keeps to the rules here (no `format!`, whole numbers only), and its release profile has `opt-level = "s"`, as the server's; at the default level the code was 3.2 KB larger. `Juku.exe` went from 773 120 to 774 656 bytes, 1.8 KB more code: link-time optimization, at the app's level (§11.8), now inlines the JSON code into the server, which in one crate was done at `"s"`.
   - *Base64* for `readMemory` and `writeMemory`: about 40 lines.
   - *Sockets:* std's `TcpListener` and `TcpStream`, non-blocking. No threads, channels or locks (§12.3).
   - *No `format!`.* The app had none of the core library's formatting code before the debugger; numbers are written as text by hand (`text.rs`, and `Instr::text` in the disassembler), and JSON keeps numbers as integers, so no floating-point parsing or printing comes in either.
