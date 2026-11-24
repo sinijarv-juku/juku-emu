@@ -5,4 +5,3 @@ target
 !.github
 !.cargo
 floppies
-demos/*.dbg

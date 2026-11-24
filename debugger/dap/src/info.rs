@@ -242,7 +242,7 @@ impl Info {
 
     /// The value of the symbol `name`. Names are case-sensitive, but one
     /// typed in another case is found too, when it matches one name only:
-    /// `print` for `PRINT`, `conch` for `CONCH`. Two or more are an error.
+    /// `PRINT` for `print`, `CONCH` for `conch`. Two or more are an error.
     pub(crate) fn value(&self, name: &str) -> Result<Option<u16>, String> {
         if let Some(n) = self.names.iter().find(|n| n.2 == name) {
             return Ok(Some(n.0));

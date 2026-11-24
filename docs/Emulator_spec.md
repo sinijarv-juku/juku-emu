@@ -52,7 +52,7 @@ juku-emu/
 ├── docs/                  # this spec, the machine description, Development.md (building, tests, debugging), T3.2_and_TIMCNT.md, images/
 ├── tools/                 # scpdisk.py: flux dumps (.scp) to sector images (the assembler, disassembler and disk tool are juku-sdk's, ../juku-sdk, §12.6)
 ├── LICENSE                # MIT
-├── .gitignore             # target, .* but .gitignore, .gitattributes, .github and .cargo, floppies, demos/*.dbg
+├── .gitignore             # target, .* but .gitignore, .gitattributes, .github and .cargo, floppies
 ├── core/                  # Rust crate "juku" (OS-agnostic)
 │   ├── Cargo.toml
 │   ├── src/
@@ -180,7 +180,7 @@ opt-level = 3                         # CPU exercisers run billions of cycles
 opt-level = 3                         # the test profile inherits dev's override
 ```
 
-`core/Cargo.toml` has no dependencies; its `[lib]` is `crate-type = ["staticlib", "rlib"]` (the static library for the app, the rlib for tests).
+`core/Cargo.toml` has no dependencies; its tests and benchmark have one, juku-sdk's `juku-demos`, the demo programs they run (§12.6). Its `[lib]` is `crate-type = ["staticlib", "rlib"]` (the static library for the app, the rlib for tests).
 
 ### 3.2 `build.sh`
 It has three modes: default (release, tuned for this machine's CPU), `debug` (unoptimized, with debug info) and `dist` (release for other Macs).
@@ -282,8 +282,8 @@ The disk image opens as a window like other apps' installers: 660 × 400 points,
 |---|---|---|
 | Idle `*` prompt | 176× | 160× |
 | Monitor dump scrolling the screen | 163× | 153× |
-| `demos/bounce.bin` (one timer write per frame) | 175× | 165× |
-| `demos/scroller.bin` (the CPU shifting video memory, half of each frame) | 165× | 149× |
+| `bounce.bin`, juku-sdk's demo (one timer write per frame) | 175× | 165× |
+| `scroller.bin`, juku-sdk's demo (the CPU shifting video memory, half of each frame) | 165× | 149× |
 
   - **Code placement moves these figures.** In the test profile a change that leaves the emulation's code alone can still move it in the binary: adding the debugger's loop (§12.4) took `bounce.bin` from 178× to 139× while the other three stayed within 2%. With functions and blocks aligned (`-C llvm-args=-align-all-functions=6 -C llvm-args=-align-all-nofallthru-blocks=5`) both builds gave 177–179×, so it was where the loop's code fell, not more work.
   - **To compare before and after, build as the app is built:** the release profile, with LTO, through `build-std`: `cargo run -p juku --release -Z build-std=std --target $(rustc -vV | sed -n 's/^host: //p') --example bench`. Before the debugger this gave 172×, 176×, 202× and 175× (M1 Max, `-C target-cpu=native`), and the same within 1% with the debugger's code in.
@@ -483,7 +483,7 @@ The disk image opens as a window like other apps' installers: 660 × 400 points,
     - Defaults: 40 bytes × 241 lines (320×241), from byte 16 and line 47. The 384×200 mode works automatically.
     - The active area is where a program that keeps the timing draws. The renderers ignore it; the tests read text through it (`Frame::active_line`).
   - **Polarity.** PIT2 OUT1 (mode 1) is low for the 72 blank lines and high for the 241 active ones. The schematic inverts it onto IR5 (MD §7.3), so its **falling edge** is the start of vertical blank and the IR5 request edge. MAME wires OUT1 to IR5 without the inverter, which moves the interrupt to the end of blank; the period is the same.
-  - **History.** The first version copied the active area from RAM once a frame, at the start of vertical blank. That missed every timing change within a frame, and caught a program that writes video memory across the frame boundary half done: `demos/scroller.bin` showed its text a pixel apart in 159 of 600 frames. By the program's timing, the real machine would draw that text long after the program has finished writing it.
+  - **History.** The first version copied the active area from RAM once a frame, at the start of vertical blank. That missed every timing change within a frame, and caught a program that writes video memory across the frame boundary half done: juku-sdk's `scroller.bin` showed its text a pixel apart in 159 of 600 frames. By the program's timing, the real machine would draw that text long after the program has finished writing it.
   - **Published frame:**
     ```rust
     #[repr(C)] pub struct Frame { pub seq: u64, pub active_x: u16, pub active_y: u16,
@@ -944,7 +944,7 @@ The Settings window exposes a curated subset.
   - The raster (`video::tests`, `machine::tests`, `core/tests/raster.rs`):
     - In the raster alone: a line starts 16 µs after sync and the counter carries on to the next one; VER RTR low counts without drawing and its rising edge reloads; POF blanks while the counter runs; a gap in HOR RTR holds the counter; without sync the monitor runs on.
     - In the machine, with the RomBios timing on a ROM of NOPs: a write 2 µs after the beam fetched a byte shows only in the next frame, and one to a byte 8 µs ahead shows at once; a mode 0 control word to T1.1 in the middle of a line leaves an 11 µs gap, after which the counter carries on; VER RTR taken low and high in horizontal blank restarts the picture from D800h on that line, for one frame.
-    - The demos, from the expansion window: `bounce.bin` moves its bar from line 47 down 201 lines and back in steps of at most 7, and a key gives the RomBios timing back; in 300 frames of `scroller.bin` the two lines of every text row are alike, where the per-frame copy split them in a quarter of the frames.
+    - juku-sdk's demos (the crate `juku-demos`), from the expansion window: `bounce.bin` moves its bar from line 47 down 201 lines and back in steps of at most 7, and a key gives the RomBios timing back; in 300 frames of `scroller.bin` the two lines of every text row are alike, where the per-frame copy split them in a quarter of the frames.
   - Caps Lock follower (`core/tests/caps_lock.rs`). With the host Caps Lock on from power-on, the cold boot ends with CONSW bit 0 set, and `a` echoes as `*A`. A warm reset clears CONSW and the follower sets it again, and turning the target off clears it.
   - Measured BLEEP frequency from the audio stream (`core/tests/monitor.rs`): a program poked into RAM calls BLEEP with A = 5 and DE = 08AEh, is started with `G0100`, and gives 900.1 Hz for 0.515 s. The same file types `D0000001F` and checks the dump. Typing goes through `Machine::set_key` with 60 ms holds.
   - ZOO.COM from the games disk, `jukgame1.juk` (`core/tests/zoo.rs`): its title screen keeps the RomBios mode, and its demo reprograms PIT #1 ch1/ch2 to 16 and 4 µs and PIT #2 ch1/ch2 to 112 and 45 lines, giving a **48 × 201** byte mode (384 × 201 pixels, porches 12 µs and 67 lines). The test checks the geometry and that pixels are drawn past column 352.
@@ -1307,10 +1307,10 @@ It runs on the emulation thread, with the `Machine`, between `run_cycles` calls.
 - **As built:**
   - **Expressions** (`expr.rs`): numbers as the assembler writes them and with `0x`, characters (`'J'`), the registers in any case (A–L, F, M for the byte at HL, BC, DE, HL, SP, PC, PSW), symbols by name (in another case too, §12.6), `[x]` and `w[x]`, `HIGH()` and `LOW()`, and the assembler's operators at its precedence, with `&&` and `||` below them. `evaluate` shows a value in hex and decimal (`014Ah (330)`) with a memory reference; hovering a symbol adds the byte and word there (`014Ah (330): 7Eh, word B77Eh`); a mnemonic or anything else that is not an expression shows nothing. Registers are set with expressions too.
   - **Conditions, hit counts and log points** on line and instruction breakpoints, and conditions and hit counts on watchpoints. A hit count is a number the count must reach, or one after `>`, `>=`, `==`, `<`, `<=` or `%`. A log message's `{expression}` is written in hex, or in decimal with `,d` (`{A,d}`), and goes to the Debug Console. A condition that cannot be worked out stops, with the reason in the console. A pause that comes while the machine is stopped at a breakpoint not looked at yet becomes the stop, rather than being lost when the session goes on (`busy_log_point`).
-  - **Watchpoints** (`dataBreakpointInfo`, `setDataBreakpoints`): on a symbol, from the Symbols scope, over the bytes its line of data makes (a `DW`: two; a `DS 3` after `BSS`: three), its size in the debug information, or one; on an address from an expression, with `bytes` (`supportsDataBreakpointBytes`); on a port, from Devices → Ports, where read is IN and write is OUT. Ids are `mem:7D98:0001` and `port:15`.
+  - **Watchpoints** (`dataBreakpointInfo`, `setDataBreakpoints`): on a symbol, from the Symbols scope, over the bytes its line of data makes (a `DW`: two; a `DS 3` in `BSS`: three), its size in the debug information, or one; on an address from an expression, with `bytes` (`supportsDataBreakpointBytes`); on a port, from Devices → Ports, where read is IN and write is OUT. Ids are `mem:7D98:0001` and `port:15`.
   - **Scopes:** Registers; Devices, with Interrupts (IRR, ISR, IMR), Timer 1–3 (each counter's mode, count, value, OUT and gate), PPI 1 and 2 (ports A–C), Floppy (registers, lines, drives), Video (the picture's size and place, the beam's line and µs) and Ports; Symbols, the labels by address with the byte and word at each, marked expensive so that VS Code opens it only when asked; and Machine. Reading the devices brings the timers up to date first (`Machine::devices`), which changes nothing they do.
   - **Jump to Cursor** (`gotoTargets`, `goto`) on a line of source: PC goes to its code, and the stop is reported as `goto`.
-  - **Frames** are named by the label at their routine's entry first, so that RomBios's routines have their names (`TTO`).
+  - **Frames** are named by the label at their routine's entry first, so that RomBios's routines have their names (`tto`).
 - **As built:**
   - Without debug information every step is by instruction: `stepIn` is one instruction, `next` steps over a call, `stepOut` runs out of the innermost frame, whatever the granularity asked for. `setBreakpoints` answers each source breakpoint as not verified ("No debug information for this file"); `launch` is refused ("use attach"). `evaluate` is not supported yet.
   - Frames are named by the address their routine was entered at (`FF98h`), with "(interrupt)" for a handler; the outermost known one is "? at 0107h", and "…" below it is a label frame. Registers show in hex with an `h` (`3Eh`, `D6DCh`); a new value can be typed as `3Eh`, `0x3E`, `101b` or in decimal.
@@ -1323,7 +1323,7 @@ It runs on the emulation thread, with the `Machine`, between `run_cycles` calls.
   - A breakpoint's `stopped` event names its id, the address plus 1.
 
 ### 12.6 Debug information
-- **`juku-asm bounce.asm bounce.bin -g bounce.dbg`** writes the debug information, in JSON. Version 2:
+- **`juku-asm -g bounce.asm`** writes the debug information, `bounce.dbg` beside `bounce.bin`, in JSON. Version 2:
   ```json
   {
     "version": 2,
@@ -1342,22 +1342,22 @@ It runs on the emulation thread, with the `Machine`, between `run_cycles` calls.
       ["setup",340,4]
     ],
     "equs": [
-      ["TTO",65497]
+      ["tto",65497]
     ]
   }
   ```
   - Paths are relative to the `.dbg` file.
-  - `lines` has a row for each run of code from one file with no gap between its lines: the address, the file, the first line and that line's length in bytes, then for each line after it how many lines on it is (0 in a `REPT` body repeated on one line) and its length. A run ends where the code skips bytes or the file changes, or a line goes back, as each time round a `REPT` body does.
+  - `lines` maps each instruction to its source line: a row for each run of instructions from one file, the first one's address, file, line and length, then a `step, length` pair for each one after it. juku-sdk's `docs/asm.md` (Outputs, Debug information) says how to read it, with examples.
   - `data` is the ranges DB, DW, DS, ALIGN and INCBIN made, joined where they meet.
-  - `labels` are `[name, address]`, with the size of the line of data or the memory reserved after `BSS` at the label as a third field: what a watchpoint on it watches. `equs` are `[name, value]`. Both are in order of value.
+  - `labels` are `[name, address]`, with the size of the line of data or the memory reserved in `BSS` at the label as a third field: what a watchpoint on it watches. `equs` are `[name, value]`. Both are in order of value.
   - Memory reserved past the image (a `BSS` area) is named in the labels, not in the lines.
   - *Version 1* had a row `[address, length, file, line]` for each line, of code and of data, and each symbol with its kind, one to a row with spaces. Version 2 holds the same in about a fifth of the space: bounce's file went from 1.9 KB to 0.7 KB and scroller's from 10.5 KB to 3.3 KB. The loader takes version 2 only; `resources/symbols/` is in it too.
-  - *As built:* `-g` takes the file's name, as `-l` and `-s` do. The demos' `.dbg` files are build output, left out of the repository (`.gitignore`). The server's tests assemble `bounce.asm` with `juku-asm`'s library and write `bounce.bin` and `bounce.dbg` into their `CARGO_TARGET_TMPDIR`.
-  - *As built:* the server's dev-dependencies, `juku-asm` and `juku-i8080`, are git dependencies on `https://github.com/sinijarv-juku/juku-sdk` at a release tag, so that a clone of this repository alone builds and tests. Cargo reads every dependency of the workspace, dev-dependencies too, before it builds anything, so with the path dependency even `build.sh` needed juku-sdk beside it. To work on both, a `[patch]` of that URL in a cargo configuration outside both repositories (`../.cargo/config.toml`, which cargo finds in a parent folder) puts in the copy beside this one; docs/Development.md says how. While it is in place, `Cargo.lock` names the local copy, without a source.
-  - *As built:* names are case-sensitive, as written: `count:` and `COUNT equ 3` are two symbols; mnemonics, registers, directives and `high`/`low` are not. The server finds a name typed in another case when only one matches it ignoring case (`Info::value`): `PRINT` is `print` and `conch` RomBios's `CONCH`; an exact match comes first, and two that match ignoring case (`Count` for `count` and `COUNT`) are an error naming both. Registers are taken in any case before symbols.
+  - *As built:* `-g`, as `-l` and `-s`, names its file as the image is, from the source or from `-o` (juku-sdk's `docs/asm.md`). The server's tests write juku-sdk's `bounce.asm` (from `juku-demos`) into their `CARGO_TARGET_TMPDIR`, assemble it there with `juku-asm`'s library, check the image against `juku-demos`' and write `bounce.bin` and `bounce.dbg` beside it.
+  - *As built:* the dev-dependencies `juku-asm` and `juku-i8080` (the server's) and `juku-demos` (the core's and the server's) are git dependencies on `https://github.com/sinijarv-juku/juku-sdk` at a release tag, so that a clone of this repository alone builds and tests. Cargo reads every dependency of the workspace, dev-dependencies too, before it builds anything, so with the path dependency even `build.sh` needed juku-sdk beside it. To work on both, a `[patch]` of that URL in a cargo configuration outside both repositories (`../.cargo/config.toml`, which cargo finds in a parent folder) puts in the copy beside this one; docs/Development.md says how. While it is in place, `Cargo.lock` names the local copy, without a source.
+  - *As built:* names are case-sensitive, as written: `count:` and `COUNT equ 3` are two symbols; mnemonics, registers, directives and `high`/`low` are not. The server finds a name typed in another case when only one matches it ignoring case (`Info::value`): `PRINT` is `print` and `CONCH` RomBios's `conch`; an exact match comes first, and two that match ignoring case (`Count` for `count` and `COUNT`) are an error naming both. Registers are taken in any case before symbols.
 - **System symbols.** `resources/symbols/rombios.dbg` names the RomBios entry points and system variables (MD §14.2, §14.3), and `ekdos.dbg` the EKDOS addresses (MD §3.4). They are written from the machine description, not taken from anyone's software. The RomBios file is loaded when the ROM's jump table at FF26h is RomBios's, the EKDOS one when EKDOS is found in memory (§12.7); the launch setting `systemSymbols: false` leaves them out.
-  - *As built:* the files are built into the server (`include_str!`) and loaded at attach and launch. RomBios's when CONSTAT, MONITOR, TTI and TTO (FF98h, FFC4h, FFD3h, FFD9h) hold JMPs or CALLs and the pointer at FFA5h points to D4BEh, the keyboard variables: both RomBios 3.43 ROMs, every entry of `rombios.dbg` checked against them; not JMON 3.3. EKDOS's (WBOOT, BDOS, TFCB, TFCB2, TBUFF) when 0000h and 0005h hold JMPs. All are labels, so that a call shows as `CALL CONSTAT` and a load as `LDA CONCH`.
-  - *As built:* the names and values are juku-sdk's include files, `include/rombios.inc` and `ekdos.inc`, which `juku-asm` has built in and programs include (the demos do). The `.dbg` files here hold the same names as labels; the server's test `system_symbols_are_the_sdks` assembles each include file with `juku-asm` and compares. `ports.inc` names the I/O ports (`PIC_0`, `PPI1_A`, `T2_1`, `FDC_CMD`, …), which the server's Ports view names by chip instead. The server's tests find `bounce.asm`'s lines by their text, so that the demo can change above them.
+  - *As built:* the files are built into the server (`include_str!`) and loaded at attach and launch. RomBios's when CONSTAT, MONITOR, TTI and TTO (FF98h, FFC4h, FFD3h, FFD9h) hold JMPs or CALLs and the pointer at FFA5h points to D4BEh, the keyboard variables: both RomBios 3.43 ROMs, every entry of `rombios.dbg` checked against them; not JMON 3.3. EKDOS's (`wboot`, `iobyte`, `cdisk`, `bdos`, `tfcb`, `tfcb2`, `tbuff`) when 0000h and 0005h hold JMPs. The addresses are labels, so that a call shows as `CALL constat` and a load as `LDA conch`. `ekdos.dbg` also has juku-sdk's `ekdos.inc`'s constants and struct fields as equs (`F_OPEN`, `fcb.cr`), for expressions; an equ names only a jump's or call's target, and a label at the same value comes first.
+  - *As built:* the names and values are juku-sdk's include files, `include/rombios.inc` and `ekdos.inc`, which `juku-asm` has built in and programs include (the demos do). The `.dbg` files here hold the same names as labels, in lower case as juku-sdk writes the names of addresses and ports; the server's test `system_symbols_are_the_sdks` assembles each include file with `juku-asm` and compares. `ports.inc` names the I/O ports (`pic_0`, `ppi1_a`, `t2_1`, `fdc_cmd`, …), which the server's Ports view names by chip instead. The server's tests find `bounce.asm`'s lines by their text, so that the demo can change above them.
 
 ### 12.7 Launch and attach
 - **Attach** connects to the machine as it runs. Nothing is loaded or changed; it stops when asked or at a breakpoint. `debugInfo` lists `.dbg` files to load, for a program that is already in memory.
@@ -1368,7 +1368,7 @@ It runs on the emulation thread, with the `Machine`, between `run_cycles` calls.
     "type": "juku",
     "request": "launch",
     "name": "Bounce",
-    "program": "${workspaceFolder}/demos/bounce.bin",
+    "program": "${workspaceFolder}/bounce.bin",
     "stopOnEntry": true
   }
   ```
@@ -1407,7 +1407,7 @@ It runs on the emulation thread, with the `Machine`, between `run_cycles` calls.
 - **Packaging:** `npm run package` makes a `.vsix`, installed with `code --install-extension`. Not on the Marketplace for now.
   - *As built:* `package.py` makes the `.vsix` without npm: a zip of the extension's files under `extension/`, with the manifest (`extension.vsixmanifest`) and the content types (`[Content_Types].xml`) that `vsce` writes. `code --extensions-dir <scratch folder> --install-extension` installed it. Packing came early, since run with `--extensionDevelopmentPath`, the extension is only in the window that option opens, and `.asm` files in any other window showed as plain text.
   - A user's `files.associations` mapping `*.asm` to another language wins over the extension's; the README says so.
-- **Examples:** `demos/.vscode/` would be ignored as a dotfile, so the extension's README shows a `tasks.json` that assembles with `-g` and a `launch.json` that debugs the result.
+- **Examples:** a `.vscode/` folder beside the demos would be ignored as a dotfile, so the extension's README shows a `tasks.json` that assembles with `-g` and a `launch.json` that debugs the result.
 
 ### 12.9 Terminal client (postponed)
 A full-screen `juku-debugger` in `debugger/cli/`: registers, disassembly, memory, the stack, breakpoints and the devices at once, with a command line. It would be one more DAP client of the same server, using custom requests for the devices. It may not be needed once VS Code works well.

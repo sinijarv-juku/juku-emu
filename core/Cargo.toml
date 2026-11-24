@@ -6,3 +6,8 @@ edition = "2024"
 crate-type = ["staticlib", "rlib"]   # staticlib for the app, rlib for tests
 
 [dependencies]
+
+[dev-dependencies]
+# The demos' images, for the raster tests and the benchmark: juku-sdk's,
+# from GitHub (docs/Development.md says how to use a copy of your own).
+juku-demos = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.2.0" }

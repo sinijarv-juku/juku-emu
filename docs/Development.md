@@ -44,14 +44,17 @@ the disk image's window.
 
 ## juku-sdk
 
-The debug server's tests use two crates of
-[juku-sdk](https://github.com/sinijarv-juku/juku-sdk), the assembler
-`juku-asm` and the 8080's instruction table `juku-i8080`: they assemble the
-demos, and check the emulator's names and disassembler against the SDK's.
-They are *git dependencies* in `debugger/dap/Cargo.toml`:
+The tests use three crates of
+[juku-sdk](https://github.com/sinijarv-juku/juku-sdk): the demo programs
+`juku-demos`, which the core's raster tests and benchmark run; the
+assembler `juku-asm`, which the debug server's tests assemble the bounce
+demo with; and the 8080's instruction table `juku-i8080`, which they check
+the emulator's disassembler against, as they check its names against the
+SDK's. They are *git dependencies* in `core/Cargo.toml` and
+`debugger/dap/Cargo.toml`:
 
 ```toml
-juku-asm = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.1.0" }
+juku-asm = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.2.0" }
 ```
 
 Cargo clones the repository itself, at the tag, into its own cache, and
@@ -60,7 +63,7 @@ needs to be cloned beside juku-emu, but the first build needs the network.
 Cargo reads every dependency before it builds, so `build.sh` fetches the
 SDK too, though the app does not use it.
 
-To move to a newer SDK, change the tag of both crates to the new release.
+To move to a newer SDK, change the tag of every crate to the new release.
 
 ### Working on juku-sdk too
 
@@ -80,6 +83,7 @@ juku/
 [patch."https://github.com/sinijarv-juku/juku-sdk"]
 juku-asm = { path = "juku-sdk/crates/asm" }
 juku-i8080 = { path = "juku-sdk/crates/i8080" }
+juku-demos = { path = "juku-sdk/crates/demos" }
 ```
 
 Cargo reads configuration files in the folders above the one it runs in,
@@ -93,7 +97,7 @@ the release. The local copy usually has another version (the next one with
 it, in `juku-emu`:
 
 ```sh
-cargo update juku-asm juku-i8080
+cargo update juku-asm juku-i8080 juku-demos
 ```
 
 Until then cargo builds the release, warns that the patch "was not used in
@@ -161,10 +165,10 @@ messages, and watchpoints stop on a symbol's or a port's reads and writes.
    python3 vscode/package.py && code --install-extension target/juku.vsix
    ```
 
-2. Assemble with debug information:
+2. Assemble with debug information, in juku-sdk's `demos/`:
 
    ```sh
-   juku-asm demos/bounce.asm demos/bounce.bin -g demos/bounce.dbg
+   juku-asm -g bounce.asm          # bounce.bin and bounce.dbg
    ```
 
 3. Launch it from VS Code, with a `.vscode/launch.json` like this:
@@ -177,7 +181,7 @@ messages, and watchpoints stop on a symbol's or a port's reads and writes.
                "type": "juku",
                "request": "launch",
                "name": "Bounce",
-               "program": "${workspaceFolder}/demos/bounce.bin",
+               "program": "${workspaceFolder}/bounce.bin",
                "stopOnEntry": true
            }
        ]

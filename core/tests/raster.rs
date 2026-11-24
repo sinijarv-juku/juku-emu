@@ -1,4 +1,4 @@
-//! The raster demos in demos/, run from the expansion window: the picture
+//! juku-sdk's raster demos (juku-demos), run from the expansion window: the picture
 //! moves where the timers put it, and video memory changed while a frame is
 //! drawn shows as the beam would show it (spec §4.5).
 
@@ -9,14 +9,13 @@ use juku::Machine;
 use juku::machine::CPU_HZ;
 use juku::video::{RASTER_BYTES, RASTER_LINES};
 
-const DEMOS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../demos");
+use juku_demos::{BOUNCE, Demo, SCROLLER};
 
 /// Boots with the demo plugged in and starts it with A.
-fn start(name: &str) -> (Machine, Vec<u8>) {
+fn start(demo: &Demo) -> (Machine, Vec<u8>) {
     let rom = load_rom();
-    let image = std::fs::read(format!("{DEMOS}/{name}")).unwrap();
     let mut m = Machine::new(&rom).unwrap();
-    m.insert_expansion(&image).unwrap();
+    m.insert_expansion(demo.image).unwrap();
     run_to_prompt(&mut m, &rom, 10.0);
     type_text(&mut m, "a");
     m.run_cycles(CPU_HZ / 2);
@@ -44,7 +43,7 @@ fn top(m: &Machine) -> Option<usize> {
 /// from the top of the picture (line 47) down 201 lines and back.
 #[test]
 fn bounce_moves_the_bar_by_the_vertical_blank() {
-    let (mut m, rom) = start("bounce.bin");
+    let (mut m, rom) = start(&BOUNCE);
     let mut tops = Vec::new();
     for _ in 0..100 {
         next_frame(&mut m);
@@ -67,7 +66,7 @@ fn bounce_moves_the_bar_by_the_vertical_blank() {
 /// differs: the copy caught the shift between its two lines.
 #[test]
 fn scroller_text_is_never_caught_half_shifted() {
-    let (mut m, _) = start("scroller.bin");
+    let (mut m, _) = start(&SCROLLER);
     let mut tops = Vec::new();
     for i in 0..300 {
         next_frame(&mut m);

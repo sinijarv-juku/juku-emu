@@ -435,7 +435,7 @@ fn source(path: &Path) -> Value {
 }
 
 /// Whether the instruction with opcode `op` goes to its 16-bit operand: a
-/// jump or a call, whose operand an EQU may name, as `CALL TTO`.
+/// jump or a call, whose operand an EQU may name, as `CALL tto`.
 fn goes_to(op: u8) -> bool {
     matches!(op, 0xC3 | 0xCB | 0xCD | 0xDD | 0xED | 0xFD) || op >= 0xC0 && matches!(op & 7, 2 | 4)
 }
@@ -1080,7 +1080,7 @@ impl Session {
         let mut frames = Vec::new();
         for k in 0..=n {
             let at = if k == 0 { m.cpu().pc } else { stack[n - k].ret };
-            // A routine by the label at its entry (`TTO` from RomBios's
+            // A routine by the label at its entry (`tto` from RomBios's
             // symbols), or by its place in a program, or by an EQU naming
             // its address.
             let named = |a: u16| {

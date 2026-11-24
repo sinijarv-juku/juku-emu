@@ -17,8 +17,10 @@ macOS and Windows.
   the crate's Rust API, as it uses the core's.
 - The assembler, `juku-asm`, is part of juku-sdk, a repository of its own
   beside this one (`../juku-sdk`, crate `crates/asm`): a command, and a
-  library the debug server's tests assemble the demos with. The server
-  takes it as a git dependency on juku-sdk's GitHub repository at a
+  library the debug server's tests assemble the bounce demo with. The demo
+  programs are juku-sdk's too (`demos/`), and the crate `juku-demos` has
+  their sources and images: the core's raster tests and benchmark run
+  them. These are git dependencies on juku-sdk's GitHub repository at a
   release tag; `../.cargo/config.toml`, outside both repositories, patches
   in the copy beside this one (docs/Development.md, "juku-sdk").
 - `frontends/macos/` is the macOS layer in Objective-C (`src/`), with Metal
@@ -80,9 +82,9 @@ cargo run -p juku --release -Z build-std=std --target $(rustc -vV | sed -n 's/^h
 CODE_SIGN_IDENTITY=<hash> ./package.sh   # signed target/Juku-<version>.dmg, its window laid out by Finder (spec §3.4)
 
 ../juku-sdk/build.sh install                               # the SDK's commands, juku-asm too, on the PATH
-juku-asm <source.asm> <out.bin> [-l out.lst] [-s out.sym] [-g out.dbg]   # assemble; -g writes debug information (spec §12.6)
+juku-asm [-l] [-s] [-g] [-o out.bin] <source.asm>            # assemble to source.bin; -g also writes source.dbg, the debug information (spec §12.6)
 juku-disk ls|get|put|rm|new <image> ...                     # files on EKDOS disk images: juku-sdk's, ../juku-sdk/target/bin
-juku-dis <file> [<start> [<end>]] [--base 0] [-s] [-i rombios.inc]   # disassemble: juku-sdk's; base 100 (COM) by default, -s source
+juku-dis [-s] [-i rombios.inc] [-p] [-b 0] [-r start-end] <file>   # disassemble: juku-sdk's; base 100 (COM) by default, -s source
 python3 tools/scpdisk.py <image.scp> [-t CYL.SIDE | -o out.juk]   # decode a flux dump: per-track summary, a track's bytes, or a sector image
 ```
 
@@ -155,12 +157,20 @@ powershell -ExecutionPolicy Bypass -File frontends\windows\resources\make_artwor
   only; see `resources/roms/README.md`. Do not add other third-party ROMs,
   disk images or software to the repository.
 - **Assembly source is lower case**: mnemonics, registers, directives,
-  labels and hex digits (`mvi a, 0ffh`), a space after each operand comma;
-  constants made with `equ` are upper case (`TTO equ 0ffd9h`). Names are
-  case-sensitive in juku-asm, so a use must match its definition. RomBios's
-  names and the ports come from juku-sdk's include files
-  (`include 'rombios.inc'`, `'ports.inc'`). The debug server's tests find
-  `demos/bounce.asm`'s lines by their text (`bounce_line`).
+  labels and hex digits (`mvi a, 0ffh`), a space after each operand comma.
+  A name made with `equ` is upper case only for a constant, such as a
+  count, size, mask or character (`ROWS equ 4`, `ESC equ 1bh`); one for an
+  address, a port or an offset is lower case, as a label is (`tto equ
+  0ffd9h`, `screen equ 0d800h`), and so are RomBios's, EKDOS's and the
+  ports' names in juku-sdk's include files and `resources/symbols/`. Names are
+  case-sensitive in juku-asm, so a use must match its definition. RomBios's,
+  EKDOS's and the ports' names come from juku-sdk's include files, each
+  under a namespace: `include 'rombios.inc' as rb`, `include 'ekdos.inc'
+  as dos` and `include 'ports.inc' as io`, then `call rb.tto`, `call
+  dos.bdos`, `out io.t2_1`. An anonymous label (`:`, `jnz
+  :-`) only where a name would be noise, one that would have to be made up
+  (`.ok`, `.wait2` beside `.wait`). The debug server's tests find
+  juku-sdk's `demos/bounce.asm`'s lines by their text (`bounce_line`).
 - **System symbols are juku-sdk's.** `resources/symbols/rombios.dbg` and
   `ekdos.dbg` hold the names and values of juku-sdk's `include/rombios.inc`
   and `ekdos.inc`; the test `system_symbols_are_the_sdks` checks it. Change

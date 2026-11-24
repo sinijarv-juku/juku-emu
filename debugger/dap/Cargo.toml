@@ -17,7 +17,8 @@ juku = { path = "../../core" }
 [dev-dependencies]
 # From juku-sdk on GitHub; docs/Development.md says how to use a copy of
 # your own.
-# The tests assemble the bounce demo, and check the core's disassembler
-# against juku-i8080's table.
-juku-asm = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.1.0" }
-juku-i8080 = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.1.0" }
+# The tests assemble the bounce demo, juku-demos', and check the core's
+# disassembler against juku-i8080's table.
+juku-asm = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.2.0" }
+juku-demos = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.2.0" }
+juku-i8080 = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.2.0" }

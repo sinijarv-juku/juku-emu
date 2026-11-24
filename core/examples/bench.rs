@@ -1,6 +1,6 @@
 //! Emulation speed for a few workloads, as multiples of real time: the idle
-//! `*` prompt, the monitor scrolling a memory dump, and the raster demos in
-//! demos/ (a write to the timers per frame; the CPU shifting video memory).
+//! `*` prompt, the monitor scrolling a memory dump, and juku-sdk's raster
+//! demos (a write to the timers per frame; the CPU shifting video memory).
 //! Two run again under the debugger (spec §12.4), with a breakpoint and
 //! watchpoints set that nothing reaches. Each runs three times and the best
 //! is shown.
@@ -13,8 +13,6 @@ use juku::Machine;
 use juku::debug::Access;
 use juku::machine::CPU_HZ;
 use std::time::Instant;
-
-const DEMOS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../demos");
 
 /// A workload: its name, how long it runs, and how to set it up.
 type Case<'a> = (&'a str, u64, Box<dyn Fn() -> Machine + 'a>);
@@ -48,8 +46,7 @@ fn debugging(mut m: Machine) -> Machine {
 
 fn main() {
     let rom = load_rom();
-    let bounce = std::fs::read(format!("{DEMOS}/bounce.bin")).unwrap();
-    let scroller = std::fs::read(format!("{DEMOS}/scroller.bin")).unwrap();
+    let (bounce, scroller) = (juku_demos::BOUNCE.image, juku_demos::SCROLLER.image);
     let cases: [Case; 6] = [
         ("idle prompt", 60, Box::new(|| at_prompt(&rom, None))),
         (
@@ -65,7 +62,7 @@ fn main() {
             "bounce.bin",
             30,
             Box::new(|| {
-                let mut m = at_prompt(&rom, Some(&bounce));
+                let mut m = at_prompt(&rom, Some(bounce));
                 type_text(&mut m, "a");
                 m
             }),
@@ -74,7 +71,7 @@ fn main() {
             "scroller.bin",
             30,
             Box::new(|| {
-                let mut m = at_prompt(&rom, Some(&scroller));
+                let mut m = at_prompt(&rom, Some(scroller));
                 type_text(&mut m, "a");
                 m
             }),
@@ -84,7 +81,7 @@ fn main() {
             "scroller.bin, debugging",
             30,
             Box::new(|| {
-                let mut m = at_prompt(&rom, Some(&scroller));
+                let mut m = at_prompt(&rom, Some(scroller));
                 type_text(&mut m, "a");
                 debugging(m)
             }),

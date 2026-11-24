@@ -14,7 +14,6 @@ use juku_dap::json::{Value, obj};
 use juku_dap::{Server, base64};
 
 const ROM: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../resources/roms/ekta37.bin");
-const DEMOS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../demos");
 
 /// How long a reply may take.
 const TIMEOUT: Duration = Duration::from_secs(5);
@@ -406,12 +405,15 @@ fn a_new_client_after_one_leaves() {
     r.pause();
 }
 
-/// The bounce demo assembled, once, with its debug information written to
-/// a file: the image and the file's path.
+/// juku-sdk's bounce demo, its source written to a file and assembled
+/// there, once, with its debug information beside it: the image and the
+/// debug information's path.
 fn bounce_built() -> &'static (Vec<u8>, String) {
     static BUILT: OnceLock<(Vec<u8>, String)> = OnceLock::new();
     BUILT.get_or_init(|| {
-        let program = juku_asm::assemble(Path::new(&format!("{DEMOS}/bounce.asm"))).unwrap();
+        std::fs::write(bounce_asm(), juku_demos::BOUNCE.source).unwrap();
+        let program = juku_asm::assemble(Path::new(&bounce_asm())).unwrap();
+        assert!(program.image == juku_demos::BOUNCE.image, "bounce.asm assembles to juku-demos' image");
         let dir = Path::new(env!("CARGO_TARGET_TMPDIR"));
         let (image, dbg) = (dir.join("bounce.bin"), dir.join("bounce.dbg"));
         std::fs::write(&image, &program.image).unwrap();
@@ -420,10 +422,15 @@ fn bounce_built() -> &'static (Vec<u8>, String) {
     })
 }
 
+/// Where bounce_built writes bounce.asm.
+fn bounce_asm() -> String {
+    format!("{}/bounce.asm", env!("CARGO_TARGET_TMPDIR"))
+}
+
 /// The number of the line of bounce.asm that starts with `text`, after its
 /// indent: the tests find their lines by what is on them.
 fn bounce_line(text: &str) -> i64 {
-    let source = std::fs::read_to_string(format!("{DEMOS}/bounce.asm")).unwrap();
+    let source = juku_demos::BOUNCE.source;
     let mut found = source.lines().enumerate().filter(|(_, l)| l.trim_start().starts_with(text));
     let (i, _) = found.next().unwrap_or_else(|| panic!("no line {text} in bounce.asm"));
     assert!(found.next().is_none(), "two lines {text} in bounce.asm");
@@ -435,7 +442,7 @@ fn bounce_line(text: &str) -> i64 {
 #[test]
 fn bounce_by_source() {
     let (image, dbg) = bounce_built();
-    let asm = format!("{DEMOS}/bounce.asm");
+    let asm = bounce_asm();
     let mut r = Rig::with(Some(image), obj([("debugInfo", vec![Value::from(dbg.as_str())].into())]));
 
     // `print:  mov a, m`; the comment above it moves to it.
@@ -464,16 +471,16 @@ fn bounce_by_source() {
     assert_eq!(list[0]["symbol"].as_str(), Some("print"));
     assert_eq!(list[0]["line"].as_i64(), Some(print));
     assert_eq!(list[0]["location"]["name"].as_str(), Some("bounce.asm"));
-    assert_eq!(list[3]["instruction"].as_str(), Some("CALL TTO"));
+    assert_eq!(list[3]["instruction"].as_str(), Some("CALL tto"));
 
-    // By line: print, then ora a, rz, call TTO (stepped over), inx h.
+    // By line: print, then ora a, rz, call tto (stepped over), inx h.
     r.ok("setBreakpoints", obj([("source", obj([("path", asm.as_str().into())])), ("breakpoints", Vec::new().into())]));
     for want in [print + 1, print + 2, print + 3, print + 4] {
         r.ok("next", obj([("threadId", 1.into())]));
         assert_eq!(r.event("stopped")["reason"].as_str(), Some("step"));
         assert_eq!(r.top().2, want);
     }
-    // Round the loop (JMP print) to CALL TTO, and into TTO: the ROM, with
+    // Round the loop (JMP print) to CALL tto, and into tto: the ROM, with
     // no source.
     for want in [print + 5, print, print + 1, print + 2, print + 3] {
         r.ok("next", obj([("threadId", 1.into())]));
@@ -483,7 +490,7 @@ fn bounce_by_source() {
     r.ok("stepIn", obj([("threadId", 1.into())]));
     r.event("stopped");
     assert_eq!((r.m.cpu().pc, r.top().1), (0xFFD9, String::new()));
-    // Out of TTO and out of print, back in start after the call.
+    // Out of tto and out of print, back in start after the call.
     r.ok("stepOut", obj([("threadId", 1.into())]));
     r.event("stopped");
     assert_eq!(r.top().2, print + 4);
@@ -620,7 +627,7 @@ fn a_probe_and_then_a_client() {
 /// started with A.
 fn bounce(lines: Vec<Value>) -> (Rig, String) {
     let (image, dbg) = bounce_built();
-    let asm = format!("{DEMOS}/bounce.asm");
+    let asm = bounce_asm();
     let mut r = Rig::with(Some(image), obj([("debugInfo", dbg.as_str().into())]));
     r.ok("setBreakpoints", obj([("source", obj([("path", asm.as_str().into())])), ("breakpoints", lines.into())]));
     r.key(5, 5);
@@ -714,23 +721,23 @@ fn expressions_scopes_and_jumps() {
     let hover = r.ok("evaluate", obj([("expression", "print".into()), ("context", "hover".into())]));
     assert_eq!(hover["result"].as_str(), Some("014Ah (330): 7Eh, word B77Eh"));
     // Names are case-sensitive, but found in another case: PRINT is print,
-    // and conch RomBios's CONCH.
-    for (text, want) in [("PRINT", "014Ah (330)"), ("conch", "D4BBh (54459)")] {
+    // and CONCH RomBios's conch.
+    for (text, want) in [("PRINT", "014Ah (330)"), ("CONCH", "D4BBh (54459)")] {
         let v = r.ok("evaluate", obj([("expression", text.into()), ("context", "watch".into())]));
         assert_eq!(v["result"].as_str(), Some(want), "{text}");
     }
     assert_eq!(r.request("evaluate", obj([("expression", "MOV".into())]))["success"].as_bool(), Some(false));
 
-    // RomBios's names: CALL TTO in the program, and in RomBios itself.
+    // RomBios's names: CALL tto in the program, and in RomBios itself.
     let at = format!("0x{:04X}", r.m.cpu().pc);
     let lines = r.ok("disassemble", obj([("memoryReference", at.into()), ("instructionCount", 5.into())]));
-    assert_eq!(lines["instructions"].as_array()[3]["instruction"].as_str(), Some("CALL TTO"));
+    assert_eq!(lines["instructions"].as_array()[3]["instruction"].as_str(), Some("CALL tto"));
     let scopes = r.ok("scopes", obj([("frameId", 0.into())]));
     let names: Vec<&str> = scopes["scopes"].as_array().iter().map(|s| s["name"].as_str().unwrap()).collect();
     assert_eq!(names, ["Registers", "Devices", "Symbols", "Machine"]);
     let symbols = r.ok("variables", obj([("variablesReference", 5.into())]));
     let named = |n: &str| symbols["variables"].as_array().iter().any(|v| v["name"].as_str() == Some(n));
-    assert!(named("print") && named("TTO") && named("CONCH"));
+    assert!(named("print") && named("tto") && named("conch"));
     let devices = r.ok("variables", obj([("variablesReference", 4.into())]));
     assert_eq!(devices["variables"].as_array().len(), 9);
     let pic = r.ok("variables", obj([("variablesReference", 10.into())]));
@@ -768,15 +775,16 @@ fn cpu_disassembler_is_the_sdks() {
 }
 
 /// RomBios's and EKDOS's symbols, built into the server, are the names and
-/// values of juku-sdk's rombios.inc and ekdos.inc (spec §12.6).
+/// values of juku-sdk's rombios.inc and ekdos.inc (spec §12.6): its
+/// addresses as labels, its constants and struct fields as equs.
 #[test]
 fn system_symbols_are_the_sdks() {
     let symbols = concat!(env!("CARGO_MANIFEST_DIR"), "/../../resources/symbols");
     let dir = Path::new(env!("CARGO_TARGET_TMPDIR"));
     for (dbg, inc) in [("rombios.dbg", "rombios.inc"), ("ekdos.dbg", "ekdos.inc")] {
         let file = Value::parse(&std::fs::read_to_string(format!("{symbols}/{dbg}")).unwrap()).unwrap();
-        let mut ours: Vec<(String, i64)> = file["labels"]
-            .as_array()
+        let mut ours: Vec<(String, i64)> = [file["labels"].as_array(), file["equs"].as_array()]
+            .concat()
             .iter()
             .map(|l| (l.as_array()[0].as_str().unwrap().to_string(), l.as_array()[1].as_i64().unwrap()))
             .collect();

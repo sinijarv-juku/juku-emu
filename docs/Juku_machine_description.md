@@ -136,6 +136,8 @@ EKDOS is the CP/M-compatible disk operating system.
 
 The appendix also says "ROM: D800–FFFF monitor", which is the mode 1 view.
 
+The BIOS's source names two more bytes of page zero, as CP/M 2.2 has them: 0003h `IOBYTE`, which it defines but does not use, and 0004h `CDISK`, the current drive, which the cold boot sets to 0 (A:) and the BIOS passes to the CCP in C. [EKD]
+
 ### 3.5 RAM disk, drive C: [ROM][EKD][EMU]
 EKDOS 2.29 and 2.30 offer a 192 KB RAM drive C:, which RomBios serves: FF5C checks for it, and its reads and writes go through the disk BIOS. The ROM's code (ROM 29B3–2AA1, run at E9B3–EAA1) fixes how the card is driven. The card itself is not documented, and the factory's expander E6201 is not it (§10.5).
 - **Mode 1 throughout.** The code runs from ROM at E000+ and never touches port 06: under EKDOS the machine is in mode 1 (in the emulator, port 06 holds 05h when FF5C is called). Mode 2's window (§3.2) is not used.
