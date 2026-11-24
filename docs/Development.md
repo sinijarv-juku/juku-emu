@@ -221,7 +221,8 @@ compatibility with earlier ones. Releases are tagged `vX.Y.Z`; the spec's
 1. Commit the version without `-dev`, `build: bump the version to X.Y.Z`,
    tag it `vX.Y.Z` and push both. The tag runs
    `.github/workflows/release.yml`, which builds the Windows zip and
-   installer and makes a draft release with them.
+   installer and makes a draft release with them, its notes with a TODO
+   in place of the changes since the previous release.
 2. On the Mac, build, sign and notarize the disk image, and add it to the
    draft:
 
@@ -230,6 +231,7 @@ compatibility with earlier ones. Releases are tagged `vX.Y.Z`; the spec's
    gh release upload vX.Y.Z target/Juku-X.Y.Z.dmg
    ```
 
-3. Look the draft over and publish it on GitHub (or
-   `gh release edit vX.Y.Z --draft=false`).
+3. Write the changes in the draft in place of its TODO, look it over and
+   publish it on GitHub (or `gh release edit vX.Y.Z --notes-file notes.md
+   --draft=false`).
 4. Commit the next version, `build: start version X.Y+1.0-dev`.
