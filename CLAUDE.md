@@ -226,6 +226,19 @@ next commit starts `X.Y+1.0-dev`. The tag's workflow drafts the GitHub
 release with the Windows files; the signed macOS disk image is added from
 the Mac (docs/Development.md, "Releasing").
 
+The draft's notes have the introduction and the Downloads section, which
+stay as `release.yml` writes them, and a TODO in place of the changes,
+written before the release is published:
+
+- Only what a user of the app sees changed: no refactoring, no code moved,
+  no internal crates, no changes to tests, the build or the documentation.
+- Neutral and factual, as a technical writer would put it: say what was
+  added or changed, in plain items, with no marketing tone, no bold labels
+  and no tour of a feature's details; a new feature is a line, with a link
+  to the documentation that describes it.
+- No installation instructions beyond the Downloads section: the README
+  has them.
+
 The bundle identifier is `io.github.sinijarv-juku.juku-emu`, from the GitHub
 organization `sinijarv-juku`, and the document types use the same prefix
 (`io.github.sinijarv-juku.juku-emu.disk-image`, `.raw-disk-image`,
