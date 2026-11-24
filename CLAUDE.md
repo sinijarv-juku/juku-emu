@@ -236,8 +236,9 @@ written before the release is published:
   added or changed, in plain items, with no marketing tone, no bold labels
   and no tour of a feature's details; a new feature is a line, with a link
   to the documentation that describes it.
-- No installation instructions beyond the Downloads section: the README
-  has them.
+- Installation instructions only for the whole released package, as the
+  Downloads section has them; anything narrower is in the README or the
+  docs.
 
 The bundle identifier is `io.github.sinijarv-juku.juku-emu`, from the GitHub
 organization `sinijarv-juku`, and the document types use the same prefix
