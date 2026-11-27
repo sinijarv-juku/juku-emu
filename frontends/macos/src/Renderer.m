@@ -92,6 +92,7 @@ static float srgbToLinear(float c)
     id<MTLTexture> _phosphor[2];        // persistence, ping-pong
     dispatch_semaphore_t _frameSemaphore;
     NSUInteger _frameIndex;
+    MTLStorageMode _cpuStorage;         // for textures the CPU writes or reads
 }
 
 static id<MTLRenderPipelineState> makePipeline(id<MTLDevice> device, id<MTLLibrary> library, NSString *fragment, MTLPixelFormat format)
@@ -110,6 +111,22 @@ static id<MTLRenderPipelineState> makePipeline(id<MTLDevice> device, id<MTLLibra
     }
 
     return pipeline;
+}
+
+// The GPU to draw with. A Mac with two GPUs gets the integrated one, as
+// NSSupportsAutomaticGraphicsSwitching in Info.plist says: the default device
+// would be the discrete GPU, and using it would switch the whole Mac to it,
+// costing battery for a picture this small. Apple silicon has one GPU, which
+// is not a low-power one, and takes the default.
+static id<MTLDevice> chooseDevice(void)
+{
+    for (id<MTLDevice> device in MTLCopyAllDevices()) {
+        if ([device isLowPower] && ![device isRemovable] && ![device isHeadless]) {
+            return device;
+        }
+    }
+
+    return MTLCreateSystemDefaultDevice();
 }
 
 // The phosphor textures have mipmaps: the 3D bezel's wall is lit by wide
@@ -185,7 +202,12 @@ static void encodeMipmaps(id<MTLCommandBuffer> commandBuffer, id<MTLRenderPipeli
         return nil;
     }
 
-    _device = MTLCreateSystemDefaultDevice();
+    _device = chooseDevice();
+    // Apple's GPUs share the Mac's memory with the CPU, so a texture the CPU
+    // writes or reads can be shared. Intel's and AMD's GPUs take no shared
+    // textures: there it is managed, a copy on each side that Metal keeps in
+    // step, and `pngForFrame:` brings its target back with a blit.
+    _cpuStorage = [_device supportsFamily:MTLGPUFamilyApple1] ? MTLStorageModeShared : MTLStorageModeManaged;
     _commandQueue = [_device newCommandQueue];
     id<MTLLibrary> library = [_device newDefaultLibrary];
 
@@ -209,7 +231,7 @@ static void encodeMipmaps(id<MTLCommandBuffer> commandBuffer, id<MTLRenderPipeli
                                                                                         height:JukuRasterLines
                                                                                      mipmapped:NO];
     [videoDesc setUsage:MTLTextureUsageShaderRead];
-    [videoDesc setStorageMode:MTLStorageModeShared];
+    [videoDesc setStorageMode:_cpuStorage];
 
     for (int i = 0; i < kInFlightFrames; i++) {
         _videoTextures[i] = [_device newTextureWithDescriptor:videoDesc];
@@ -344,13 +366,13 @@ static float tubeMargin(BOOL fullScreen)
                                                                                    height:JukuRasterLines
                                                                                 mipmapped:NO];
     [desc setUsage:MTLTextureUsageShaderRead];
-    [desc setStorageMode:MTLStorageModeShared];
+    [desc setStorageMode:_cpuStorage];
     id<MTLTexture> video = [_device newTextureWithDescriptor:desc];
     id<MTLTexture> beam = makeCanvasTexture(_device, MTLPixelFormatR16Float, NO, @"Thumbnail beam");
     id<MTLTexture> phosphor = makeCanvasTexture(_device, MTLPixelFormatRG16Float, YES, @"Thumbnail phosphor");
     desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm_sRGB width:width height:height mipmapped:NO];
     [desc setUsage:MTLTextureUsageRenderTarget];
-    [desc setStorageMode:MTLStorageModeShared];
+    [desc setStorageMode:_cpuStorage];
     id<MTLTexture> target = [_device newTextureWithDescriptor:desc];
 
     if (!video || !beam || !phosphor || !target) {
@@ -374,6 +396,13 @@ static float tubeMargin(BOOL fullScreen)
     }
 
     encodePass(commandBuffer, target, MTLLoadActionDontCare, crt ? _crtPipeline : _flatPipeline, &uniforms, crt ? phosphor : beam, nil);
+
+    if (_cpuStorage == MTLStorageModeManaged) {
+        id<MTLBlitCommandEncoder> blit = [commandBuffer blitCommandEncoder];
+        [blit synchronizeResource:target];
+        [blit endEncoding];
+    }
+
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
 

@@ -70,7 +70,7 @@ behavioral reference only for what nothing real settles.
 ```sh
 ./build.sh            # release build tuned for this machine -> target/Juku.app
 ./build.sh debug      # unoptimized build with debug info
-./build.sh dist       # release build for other Macs
+./build.sh dist       # release build for other Macs; dist x86_64 for Intel Macs
 ./run.sh              # run the built app with its log stream attached
 
 cargo test                                                 # all tests: the core's and the debug server's
@@ -81,7 +81,7 @@ python3 ../juku-sdk/vscode/package.py && code --install-extension ../juku-sdk/ta
 cargo run -p juku --profile test --example bench           # emulation speed, × real time
 cargo run -p juku --release -Z build-std=std --target $(rustc -vV | sed -n 's/^host: //p') --example bench   # the same as the app is built: use this to compare before and after
 
-CODE_SIGN_IDENTITY=<hash> ./package.sh   # signed target/Juku-<version>.dmg, its window laid out by Finder (spec §3.4)
+CODE_SIGN_IDENTITY=<hash> ./package.sh [arm64|x86_64]   # signed target/Juku-<version>-macos-{arm64,x64}.dmg, its window laid out by Finder (spec §3.4)
 
 ../juku-sdk/build.sh install                               # the SDK's commands, juku-asm too, on the PATH
 juku-asm [-l] [-s] [-g] [-o out.bin] <source.asm>            # assemble to source.bin; -g also writes source.dbg, the debug information (spec §12.6)

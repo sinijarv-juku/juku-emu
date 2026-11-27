@@ -43,8 +43,13 @@ RomBios in ROM and EKDOS, a CP/M compatible system, on 5.25" floppies.
 Download the latest release from the
 [Releases](https://github.com/sinijarv-juku/juku-emu/releases) page.
 
-- **macOS 14 or later**, Apple silicon: open `Juku-<version>.dmg` and drag
-  Juku to Applications.
+- **macOS 14 or later:** open `Juku-<version>-macos-arm64.dmg` on a Mac
+  with Apple silicon, or `Juku-<version>-macos-x64.dmg` on one with an
+  Intel processor, and drag Juku to Applications. To see which you have,
+  choose Apple menu → About This Mac: it names the chip or the processor.
+  The Intel version has not been tried on an Intel Mac yet; if it does not
+  work there, please report it on the
+  [Issues](https://github.com/sinijarv-juku/juku-emu/issues) page.
 - **Windows 10 or 11**, x64: run `Juku-<version>-windows-x64-setup.exe`,
   or unpack the `.zip` anywhere and run `Juku.exe`. The installer makes
   Juku open `.juk` disk images and `.jukusnap` snapshots; with the zip,

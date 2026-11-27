@@ -1,7 +1,13 @@
 #!/bin/zsh
 #
-# Builds Juku for distribution, signs it and packages it as a disk image:
-# target/Juku-<version>.dmg, holding Juku.app and a link to /Applications.
+# Builds Juku for distribution, signs it and packages it as a disk image,
+# holding Juku.app and a link to /Applications:
+#
+#   ./package.sh [arm64|x86_64]
+#
+# makes target/Juku-<version>-macos-arm64.dmg (Apple silicon) or
+# target/Juku-<version>-macos-x64.dmg (Intel), by default for this Mac's
+# processor. A release has both: run it once for each.
 #
 # Environment:
 #   CODE_SIGN_IDENTITY  Code signing identity (required): the SHA-1 hash of a
@@ -19,6 +25,18 @@ cd "${0:a:h}"
 APP=Juku
 BUNDLE=target/$APP.app
 STAGING=target/dmg
+
+# The processor, and its name in the disk image's file name, as Windows'
+# files name it (windows-x64).
+ARCH=${1:-$(uname -m)}
+case $ARCH in
+    arm64) ARCH_NAME=arm64 ;;
+    x86_64) ARCH_NAME=x64 ;;
+    *)
+        echo "package.sh: $ARCH is not a processor Juku is built for: arm64 or x86_64" >&2
+        exit 1
+    ;;
+esac
 
 if [ -z "$CODE_SIGN_IDENTITY" ]; then
     echo "package.sh: CODE_SIGN_IDENTITY is not set; the keychain has these identities:" >&2
@@ -41,11 +59,19 @@ if [[ "$IDENTITY_NAME" != "Developer ID Application:"* ]]; then
 fi
 
 VERSION=$(<VERSION)
-DMG=target/$APP-$VERSION.dmg
+DMG=target/$APP-$VERSION-macos-$ARCH_NAME.dmg
 
 # Fresh bundle, so nothing left over from development builds is signed.
 rm -rf $BUNDLE
-./build.sh dist
+./build.sh dist $ARCH
+
+# Every executable in the bundle is for that processor alone.
+for i in $BUNDLE/Contents/MacOS/$APP $BUNDLE/Contents/PlugIns/JukuThumbnail.appex/Contents/MacOS/JukuThumbnail; do
+    if [ "$(lipo -archs $i)" != $ARCH ]; then
+        echo "package.sh: $i is for $(lipo -archs $i), not $ARCH" >&2
+        exit 1
+    fi
+done
 
 echo "Signing with \"$IDENTITY_NAME\""
 # The Quick Look extension first, with its sandbox entitlements: signing the

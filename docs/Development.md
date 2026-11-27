@@ -10,16 +10,26 @@ and what we have worked out about the real machine in
 | | macOS | Windows |
 |---|---|---|
 | Builds | `./build.sh` → `target/Juku.app` | `build.cmd` → `target\windows\Juku.exe` |
-| Runs on | macOS 14 or later, on the architecture it was built on | Windows 10 and 11, x64 |
+| Runs on | macOS 14 or later, on the processor it was built for: this Mac's, or with `dist` either one | Windows 10 and 11, x64 |
 | Needs | nightly Rust with `rust-src`; Xcode with its Metal Toolchain component (`xcodebuild -downloadComponent MetalToolchain`) | nightly Rust with `rust-src`; the Visual Studio Build Tools and the Windows SDK; Inno Setup 6 for the installer |
 
 ```sh
 ./build.sh                # release build, tuned for this computer
 ./build.sh debug          # unoptimized, with debug info
-./build.sh dist           # release build for other Macs
+./build.sh dist           # release build for other Macs with this Mac's processor
+./build.sh dist x86_64    # the same for Intel Macs (arm64 for Apple silicon)
 ./run.sh                  # run it, with its log
-CODE_SIGN_IDENTITY=<hash> ./package.sh   # signed target/Juku-<version>.dmg
+CODE_SIGN_IDENTITY=<hash> ./package.sh arm64    # signed target/Juku-<version>-macos-arm64.dmg
+CODE_SIGN_IDENTITY=<hash> ./package.sh x86_64   # signed target/Juku-<version>-macos-x64.dmg
 ```
+
+Apple silicon and Intel Macs get a build each, not one universal app, and
+either kind of Mac builds both. Rust needs nothing more for the other
+processor, since the standard library is built from source (below). An Intel build runs on
+an Apple silicon Mac only with Rosetta 2 (`softwareupdate
+--install-rosetta`), and then still draws with the Apple GPU: what it
+does differently on Intel and AMD graphics (spec §7.3a) shows only on an
+Intel Mac.
 
 `build.cmd` takes the same `debug` and `dist`; on Windows `dist` makes a
 zip and, with Inno Setup, an installer.
@@ -160,8 +170,10 @@ A test checks that every legend has its outlines.
 GitHub Actions (`.github/workflows/ci.yml`) runs the tests and builds both
 apps on every push to `main` and every pull request, except one that
 changes only documentation (Markdown files and `docs/`): on a macOS runner
-`cargo test` and `./build.sh dist`, on a Windows runner `cargo test` and
-`build.cmd dist`, whose zip and installer are kept as the run's artifacts.
+`cargo test`, `./build.sh dist` and `./build.sh dist x86_64`, and the tests
+again for Intel (`cargo test --target x86_64-apple-darwin`) under Rosetta 2
+when the runner has it; on a Windows runner `cargo test` and `build.cmd
+dist`, whose zip and installer are kept as the run's artifacts.
 Neither is signed. To run it anyway, start it by hand:
 `gh workflow run CI`.
 
@@ -239,12 +251,13 @@ compatibility with earlier ones. Releases are tagged `vX.Y.Z`; the spec's
    `.github/workflows/release.yml`, which builds the Windows zip and
    installer and makes a draft release with them, its notes with a TODO
    in place of the changes since the previous release.
-2. On the Mac, build, sign and notarize the disk image, and add it to the
-   draft:
+2. On the Mac, build, sign and notarize the two disk images, Apple
+   silicon's and Intel's, and add them to the draft:
 
    ```sh
-   CODE_SIGN_IDENTITY=<hash> NOTARY_PROFILE=<profile> ./package.sh
-   gh release upload vX.Y.Z target/Juku-X.Y.Z.dmg
+   CODE_SIGN_IDENTITY=<hash> NOTARY_PROFILE=<profile> ./package.sh arm64
+   CODE_SIGN_IDENTITY=<hash> NOTARY_PROFILE=<profile> ./package.sh x86_64
+   gh release upload vX.Y.Z target/Juku-X.Y.Z-macos-arm64.dmg target/Juku-X.Y.Z-macos-x64.dmg
    ```
 
 3. Write the changes in the draft in place of its TODO, look it over and

@@ -7,7 +7,6 @@ APP=Juku
 MAC=frontends/macos
 TARGETDIR=target
 APPDIR=$TARGETDIR/$APP.app/Contents
-RUST_TARGET=$(rustc -vV | sed -n 's/^host: //p')
 
 # The oldest macOS it runs on (spec §10): CADisplayLink for an NSView, which
 # paces the frames, came in macOS 14. The Info.plists' LSMinimumSystemVersion
@@ -37,6 +36,10 @@ if [ ! -d $TARGETDIR ]; then
     tmutil addexclusion $TARGETDIR
 fi
 
+# The processor built for: this Mac's own, or in dist the one named after
+# it. clang and Rust name them differently.
+ARCH=$(uname -m)
+
 case "$1" in
     debug)
         CFLAGS=(-O0 -g)
@@ -45,7 +48,10 @@ case "$1" in
         export RUSTFLAGS="-Zlocation-detail=none"
     ;;
     dist)
-        # For other Macs: no tuning for this machine's CPU.
+        # For other Macs: no tuning for this machine's CPU, and for the
+        # processor named after it, arm64 (Apple silicon) or x86_64 (Intel),
+        # by default this Mac's: each gets a disk image of its own (spec §3.4).
+        ARCH=${2:-$ARCH}
         CFLAGS=(-O2 -fno-stack-protector)
         CARGO_PROFILE=(--release)
         CARGO_OUT=release
@@ -58,6 +64,16 @@ case "$1" in
         export RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none"
     ;;
 esac
+
+case $ARCH in
+    arm64) RUST_TARGET=aarch64-apple-darwin ;;
+    x86_64) RUST_TARGET=x86_64-apple-darwin ;;
+    *)
+        echo "build.sh: $ARCH is not a processor Juku is built for: arm64 or x86_64" >&2
+        exit 1
+    ;;
+esac
+CFLAGS+=(-arch $ARCH)
 
 # _metal <out> <source> [<header>...]: rebuilds when any input is newer.
 function _metal() {
@@ -125,8 +141,13 @@ clang $CFLAGS -Wl,-dead_strip $MAC/src/Main.m $CORELIB \
 
 # Release builds leave out the symbol table, a sixth of the executable. A
 # copy with it, and the same UUID, stays in target/ for symbolicating crash
-# reports: atos -o target/Juku.symbols -l <load address> <addresses>.
-if [ "$1" != debug ]; then
+# reports: atos -o target/Juku.symbols -l <load address> <addresses>. A dist
+# build's is named after its processor, Juku-x86_64.symbols, so that the
+# two disk images' copies are both kept.
+if [ "$1" = dist ]; then
+    cp $APPDIR/MacOS/$APP $TARGETDIR/$APP-$ARCH.symbols
+    strip $APPDIR/MacOS/$APP
+elif [ "$1" != debug ]; then
     cp $APPDIR/MacOS/$APP $TARGETDIR/$APP.symbols
     strip $APPDIR/MacOS/$APP
 fi

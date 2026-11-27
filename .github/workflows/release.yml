@@ -1,7 +1,8 @@
 # A tag vX.Y.Z makes a draft release with the Windows zip and installer
-# (docs/Development.md, "Releasing"). The macOS disk image is signed and
-# notarized on the developer's Mac and added to the draft by hand, which is
-# then published. Run by hand for a tag pushed before this workflow existed.
+# (docs/Development.md, "Releasing"). The macOS disk images, Apple silicon's
+# and Intel's, are signed and notarized on the developer's Mac and added to
+# the draft by hand, which is then published. Run by hand for a tag pushed
+# before this workflow existed.
 name: Release
 
 on:
@@ -74,7 +75,7 @@ jobs:
 
           **Downloads**
 
-          - **macOS 14 or later**, Apple silicon: \`Juku-${TAG#v}.dmg\`, signed and notarized. Open it and drag Juku to Applications.
+          - **macOS 14 or later:** \`Juku-${TAG#v}-macos-arm64.dmg\` for Apple silicon, \`Juku-${TAG#v}-macos-x64.dmg\` for Intel, signed and notarized. Open it and drag Juku to Applications. The Intel version has not been tried on an Intel Mac yet; if it does not work there, please [report it](https://github.com/sinijarv-juku/juku-emu/issues).
           - **Windows 10 and 11, x64:** \`Juku-${TAG#v}-windows-x64-setup.exe\`, or the \`.zip\` to unpack and run anywhere. They are not signed yet, so Windows may warn that it does not know the publisher: choose More info, then Run anyway.
 
           ## Changes

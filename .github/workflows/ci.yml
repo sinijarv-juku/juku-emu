@@ -1,8 +1,9 @@
 # Tests and builds both apps on every push to main and every pull request,
 # except one that changes only documentation (docs/Development.md,
 # "Continuous integration"). The Mac app is built as
-# for other Macs, unsigned: releases are signed on the developer's Mac
-# (spec §3.4).
+# for other Macs, for Apple silicon and for Intel, unsigned: releases are
+# signed on the developer's Mac (spec §3.4). The tests run for Intel too,
+# under Rosetta 2, when the runner has it.
 name: CI
 
 on:
@@ -37,6 +38,16 @@ jobs:
         run: cargo test --locked
       - name: Build
         run: ./build.sh dist
+      - name: Build for Intel
+        run: ./build.sh dist x86_64
+      - name: Tests for Intel
+        run: |
+          if arch -x86_64 /usr/bin/true 2>/dev/null; then
+            rustup target add x86_64-apple-darwin
+            cargo test --locked --target x86_64-apple-darwin
+          else
+            echo "::notice::This runner has no Rosetta 2: the Intel tests did not run"
+          fi
 
   windows:
     runs-on: windows-2025
