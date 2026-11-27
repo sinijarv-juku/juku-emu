@@ -22,7 +22,7 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Controls::{
-    CloseThemeData, DrawThemeBackground, ICC_BAR_CLASSES, ICC_STANDARD_CLASSES, ICC_TAB_CLASSES, INITCOMMONCONTROLSEX, InitCommonControlsEx,
+    BPBF_COMPATIBLEBITMAP, BeginBufferedPaint, CloseThemeData, EndBufferedPaint, DrawThemeBackground, ICC_BAR_CLASSES, ICC_STANDARD_CLASSES, ICC_TAB_CLASSES, INITCOMMONCONTROLSEX, InitCommonControlsEx,
     NM_CUSTOMDRAW, NMHDR, OpenThemeData, TABP_PANE, TB_ENDTRACK, TB_THUMBTRACK, TBM_SETLINESIZE, TBM_SETPAGESIZE, TBM_SETPOS, TBM_SETRANGEMAX,
     TBM_GETCHANNELRECT, TBM_SETRANGEMIN, TBS_HORZ, TBS_NOTICKS, TCIF_TEXT, TCITEMW, TCM_ADJUSTRECT, TCM_GETCURSEL, TCM_INSERTITEMW, TCM_SETCURSEL,
     TCN_SELCHANGE, TOOLTIPS_CLASSW, TRACKBAR_CLASSW, TTF_IDISHWND, TTF_SUBCLASS, TTM_ADDTOOLW, TTM_SETMAXTIPWIDTH, TTM_UPDATETIPTEXTW,
@@ -274,6 +274,10 @@ fn wrapped_height(dc: HDC, font: HFONT, text: &str, width: i32) -> i32 {
 /// and a trackbar's focus rectangle goes round all of it, up to the label.
 /// So the trackbar's own is kept hidden, and the slider draws one round its
 /// channel, which the thumb stays within, when its window shows focus.
+///
+/// It is also painted off screen and copied in one go. A trackbar erases
+/// its background with its class's light brush before it paints the page's
+/// color over it, which flashed in dark mode as a pane's sliders were shown.
 extern "system" fn slider_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM, _id: usize, _data: usize) -> LRESULT {
     match msg {
         WM_UPDATEUISTATE => unsafe {
@@ -286,22 +290,32 @@ extern "system" fn slider_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPA
             let _ = InvalidateRect(Some(hwnd), None, false);
             DefSubclassProc(hwnd, msg, wparam, lparam)
         },
-        // The trackbar paints into the DC it is given.
+        // The background is painted with the rest, in WM_PAINT.
+        WM_ERASEBKGND => LRESULT(1),
+        // The trackbar paints into the DC it is given, its background too.
         WM_PAINT => unsafe {
             let mut paint = PAINTSTRUCT::default();
-            let dc = BeginPaint(hwnd, &mut paint);
+            let target = BeginPaint(hwnd, &mut paint);
+            let mut client = RECT::default();
+            let _ = GetClientRect(hwnd, &mut client);
+            let mut buffered = HDC::default();
+            let buffer = BeginBufferedPaint(target, &client, BPBF_COMPATIBLEBITMAP, None, &mut buffered);
+            // Straight to the window if no buffer could be had.
+            let dc = if buffer != 0 { buffered } else { target };
             DefSubclassProc(hwnd, WM_PAINT, WPARAM(dc.0 as usize), LPARAM(0));
             let parent = GetParent(hwnd).unwrap_or_default();
             let cues = SendMessageW(parent, WM_QUERYUISTATE, None, None).0 as u32;
 
             if GetFocus() == hwnd && cues & UISF_HIDEFOCUS == 0 {
                 let mut channel = RECT::default();
-                let mut client = RECT::default();
                 send(hwnd, TBM_GETCHANNELRECT, 0, (&raw mut channel) as isize);
-                let _ = GetClientRect(hwnd, &mut client);
                 let gap = scale(2, GetDpiForWindow(hwnd));
                 let rect = RECT { left: channel.left - gap, top: client.top, right: channel.right + gap, bottom: client.bottom };
                 let _ = DrawFocusRect(dc, &rect);
+            }
+
+            if buffer != 0 {
+                let _ = EndBufferedPaint(buffer, true);
             }
 
             let _ = EndPaint(hwnd, &paint);
