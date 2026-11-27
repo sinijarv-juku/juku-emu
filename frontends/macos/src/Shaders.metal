@@ -101,6 +101,15 @@ static float lineIntensity(texture2d<float> tex, float x, float line, float afte
     return min(sum, 1.0);
 }
 
+// The beam at canvas intensity I, as a share of white, with the black level
+// that the Brightness setting gives (u.black): turned up past cutoff, the
+// beam is not off for black any more, and the whole raster glows faintly,
+// lines and all.
+static float beamLevel(constant CRTUniforms &u, float I)
+{
+    return u.black + (1.0 - u.black) * I;
+}
+
 // ---- The bezel ---------------------------------------------------------------
 // The МС6105's bezel, a copy of DEC's VR201's, stands about 9 mm in front of
 // the edge of the glass, on a face about 18 cm tall (measured from photos,
@@ -166,7 +175,7 @@ static float3 faceLight(constant CRTUniforms &u, texture2d<float> phosphor,
         }
 
         float shade = mix(kRim, 1.0, smoothstep(0.0, kRimWidth, a));
-        sum += 0.1 * (u.phosphor.rgb * u.phosphor.w * min(I, 1.0) + u.background.rgb * shade);
+        sum += 0.1 * (u.phosphor.rgb * u.phosphor.w * beamLevel(u, min(I, 1.0)) + u.background.rgb * shade);
     }
 
     return sum;
@@ -257,145 +266,111 @@ constant float kPlate = 0.75;
 constant float kPaint = 0.03;
 constant float kShine = 0.045;
 
-// The badge, after close-up photos of it: its top left corner from the
+// The badge, after a close-up photo of it: its top left corner from the
 // glass's bottom left corner, and its size. At its left end the emblem: a
-// black block, and in it a light frame round a spire on a foot between a
-// small Э and С; its frame's width is the emblem's unit. Then the lettering:
-// where it starts, its cap height, and half its stroke, in cap heights.
+// black block, and in it a light ring round a disc with dark marks, its
+// centre and radius. Then the lettering: where it starts, its cap height, and
+// half its stroke, in cap heights.
 constant float2 kBadgeAt = float2(0.086, 0.133);
 constant float2 kBadgeSize = float2(0.69, 0.134);
-constant float kBadgeEmblem = 0.108;
-constant float2 kMarkAt = float2(0.026, 0.009);     // the frame's outer corner in the block
-constant float kMarkUnit = 0.055;                    // the frame's width
-constant float kMarkHeight = 2.04;                   // and its height, in units
-constant float kTextAt = 0.148;
-constant float kCapHeight = 0.056;
-constant float kStroke = 0.09;
+constant float kBadgeEmblem = 0.105;
+constant float2 kEmblemAt = float2(0.051, 0.066);
+constant float kEmblemRadius = 0.035;
+constant float kTextAt = 0.133;
+constant float kCapHeight = 0.06;
+constant float kStroke = 0.085;
 
-// "электроника" and the emblem's Э and С as strokes, x0, y0, x1, y1: the
-// word in cap heights, x from its start and y up from the baseline, the
-// letters in the emblem's units, x from the frame's left edge and y down.
+// "ЭЛЕКТРОНИКА" as strokes, x0, y0, x1, y1, in cap heights, x from the
+// word's start and y up from the baseline.
 // badge strokes: made by tools/badge_glyphs.py, not edited by hand
-// The word, 8.96 cap heights wide.
-constant int kBadgeSegments = 91;
-constant float4 kBadgeText[91] = {
-    {0.141, 0.764, 0.211, 0.866},
-    {0.211, 0.866, 0.297, 0.909},
-    {0.297, 0.909, 0.385, 0.885},
-    {0.385, 0.885, 0.461, 0.798},
-    {0.461, 0.798, 0.512, 0.662},
-    {0.512, 0.662, 0.530, 0.500},
-    {0.530, 0.500, 0.512, 0.338},
-    {0.512, 0.338, 0.461, 0.202},
-    {0.461, 0.202, 0.385, 0.115},
-    {0.385, 0.115, 0.297, 0.091},
-    {0.297, 0.091, 0.211, 0.134},
-    {0.211, 0.134, 0.141, 0.236},
-    {0.200, 0.500, 0.530, 0.500},
-    {0.810, 0.090, 0.910, 0.120},
-    {0.910, 0.120, 0.980, 0.250},
-    {0.980, 0.250, 1.010, 0.450},
-    {1.010, 0.450, 1.020, 0.910},
-    {1.020, 0.910, 1.470, 0.910},
-    {1.470, 0.910, 1.470, -0.020},
-    {2.290, 0.500, 2.273, 0.658},
-    {2.273, 0.658, 2.223, 0.792},
-    {2.223, 0.792, 2.149, 0.881},
-    {2.149, 0.881, 2.062, 0.910},
-    {2.062, 0.910, 1.975, 0.876},
-    {1.975, 0.876, 1.902, 0.783},
-    {1.902, 0.783, 1.855, 0.647},
-    {1.855, 0.647, 1.840, 0.488},
-    {1.840, 0.488, 1.860, 0.330},
-    {1.860, 0.330, 1.912, 0.199},
-    {1.912, 0.199, 1.988, 0.115},
-    {1.988, 0.115, 2.075, 0.090},
-    {2.075, 0.090, 2.161, 0.129},
-    {2.161, 0.129, 2.232, 0.226},
-    {1.840, 0.500, 2.290, 0.500},
-    {2.660, -0.020, 2.660, 1.020},
-    {2.660, 0.480, 2.900, 0.480},
-    {2.900, 0.480, 2.980, 0.500},
-    {2.980, 0.500, 3.040, 0.560},
-    {3.040, 0.560, 3.080, 0.650},
-    {3.080, 0.650, 3.095, 0.770},
-    {3.095, 0.770, 3.100, 1.020},
-    {2.880, 0.480, 3.100, -0.020},
-    {3.460, 0.910, 3.870, 0.910},
-    {3.665, 0.910, 3.665, -0.020},
-    {4.240, -0.020, 4.240, 0.910},
-    {4.240, 0.910, 4.450, 0.910},
-    {4.450, 0.910, 4.450, 0.920},
-    {4.450, 0.920, 4.538, 0.902},
-    {4.538, 0.902, 4.613, 0.853},
-    {4.613, 0.853, 4.662, 0.778},
-    {4.662, 0.778, 4.680, 0.690},
-    {4.680, 0.690, 4.662, 0.602},
-    {4.662, 0.602, 4.613, 0.527},
-    {4.613, 0.527, 4.538, 0.478},
-    {4.538, 0.478, 4.450, 0.460},
-    {4.450, 0.460, 4.240, 0.460},
-    {5.540, 0.500, 5.525, 0.640},
-    {5.525, 0.640, 5.482, 0.764},
-    {5.482, 0.764, 5.415, 0.855},
-    {5.415, 0.855, 5.333, 0.904},
-    {5.333, 0.904, 5.247, 0.904},
-    {5.247, 0.904, 5.165, 0.855},
-    {5.165, 0.855, 5.098, 0.764},
-    {5.098, 0.764, 5.055, 0.640},
-    {5.055, 0.640, 5.040, 0.500},
-    {5.040, 0.500, 5.055, 0.360},
-    {5.055, 0.360, 5.098, 0.236},
-    {5.098, 0.236, 5.165, 0.145},
-    {5.165, 0.145, 5.247, 0.096},
-    {5.247, 0.096, 5.333, 0.096},
-    {5.333, 0.096, 5.415, 0.145},
-    {5.415, 0.145, 5.482, 0.236},
-    {5.482, 0.236, 5.525, 0.360},
-    {5.525, 0.360, 5.540, 0.500},
-    {5.910, -0.020, 5.910, 1.020},
-    {6.370, -0.020, 6.370, 1.020},
-    {5.910, 0.500, 6.370, 0.500},
-    {6.740, 1.020, 6.740, 0.090},
-    {6.740, 0.090, 7.220, 0.910},
-    {7.220, 0.910, 7.220, -0.020},
-    {7.590, -0.020, 7.590, 1.020},
-    {7.590, 0.480, 7.830, 0.480},
-    {7.830, 0.480, 7.910, 0.500},
-    {7.910, 0.500, 7.970, 0.560},
-    {7.970, 0.560, 8.010, 0.650},
-    {8.010, 0.650, 8.025, 0.770},
-    {8.025, 0.770, 8.030, 1.020},
-    {7.810, 0.480, 8.030, -0.020},
-    {8.370, -0.020, 8.630, 1.020},
-    {8.630, 1.020, 8.890, -0.020},
-    {8.480, 0.300, 8.780, 0.300},
+// The word, 7.65 cap heights wide.
+constant int kBadgeSegments = 83;
+constant float4 kBadgeText[83] = {
+    {0.115, 0.771, 0.152, 0.850},
+    {0.152, 0.850, 0.206, 0.898},
+    {0.206, 0.898, 0.286, 0.915},
+    {0.286, 0.915, 0.375, 0.900},
+    {0.375, 0.900, 0.429, 0.854},
+    {0.429, 0.854, 0.468, 0.777},
+    {0.468, 0.777, 0.492, 0.669},
+    {0.492, 0.669, 0.500, 0.500},
+    {0.500, 0.500, 0.492, 0.331},
+    {0.492, 0.331, 0.468, 0.223},
+    {0.468, 0.223, 0.429, 0.146},
+    {0.429, 0.146, 0.375, 0.100},
+    {0.375, 0.100, 0.286, 0.085},
+    {0.286, 0.085, 0.206, 0.102},
+    {0.206, 0.102, 0.152, 0.150},
+    {0.152, 0.150, 0.115, 0.229},
+    {0.355, 0.440, 0.500, 0.440},
+    {1.175, -0.020, 1.175, 0.915},
+    {1.175, 0.915, 0.990, 0.915},
+    {0.990, 0.915, 0.935, 0.880},
+    {0.935, 0.880, 0.920, 0.700},
+    {0.920, 0.700, 0.910, 0.400},
+    {0.910, 0.400, 0.890, 0.200},
+    {0.890, 0.200, 0.850, 0.080},
+    {0.850, 0.080, 0.780, -0.020},
+    {1.799, 0.915, 1.479, 0.915},
+    {1.479, 0.915, 1.479, 0.085},
+    {1.479, 0.085, 1.849, 0.085},
+    {1.479, 0.520, 1.709, 0.520},
+    {2.109, -0.020, 2.109, 1.020},
+    {2.184, 0.450, 2.509, 1.020},
+    {2.274, 0.520, 2.514, -0.020},
+    {2.784, 0.915, 3.199, 0.915},
+    {2.999, 0.915, 2.999, -0.020},
+    {3.503, -0.020, 3.503, 0.915},
+    {3.503, 0.915, 3.708, 0.915},
+    {3.708, 0.915, 3.775, 0.905},
+    {3.775, 0.905, 3.818, 0.875},
+    {3.818, 0.875, 3.848, 0.825},
+    {3.848, 0.825, 3.867, 0.756},
+    {3.867, 0.756, 3.873, 0.647},
+    {3.873, 0.647, 3.867, 0.539},
+    {3.867, 0.539, 3.848, 0.470},
+    {3.848, 0.470, 3.818, 0.420},
+    {3.818, 0.420, 3.775, 0.390},
+    {3.775, 0.390, 3.708, 0.380},
+    {3.708, 0.380, 3.503, 0.370},
+    {4.593, 0.500, 4.588, 0.647},
+    {4.588, 0.647, 4.571, 0.743},
+    {4.571, 0.743, 4.544, 0.818},
+    {4.544, 0.818, 4.507, 0.872},
+    {4.507, 0.872, 4.459, 0.904},
+    {4.459, 0.904, 4.386, 0.915},
+    {4.386, 0.915, 4.312, 0.904},
+    {4.312, 0.904, 4.264, 0.872},
+    {4.264, 0.872, 4.227, 0.818},
+    {4.227, 0.818, 4.200, 0.743},
+    {4.200, 0.743, 4.183, 0.647},
+    {4.183, 0.647, 4.178, 0.500},
+    {4.178, 0.500, 4.183, 0.353},
+    {4.183, 0.353, 4.200, 0.257},
+    {4.200, 0.257, 4.227, 0.182},
+    {4.227, 0.182, 4.264, 0.128},
+    {4.264, 0.128, 4.312, 0.096},
+    {4.312, 0.096, 4.385, 0.085},
+    {4.385, 0.085, 4.459, 0.096},
+    {4.459, 0.096, 4.507, 0.128},
+    {4.507, 0.128, 4.544, 0.182},
+    {4.544, 0.182, 4.571, 0.257},
+    {4.571, 0.257, 4.588, 0.353},
+    {4.588, 0.353, 4.593, 0.500},
+    {4.943, -0.020, 4.943, 1.020},
+    {5.313, -0.020, 5.313, 1.020},
+    {4.943, 0.610, 5.313, 0.610},
+    {5.662, -0.020, 5.662, 1.020},
+    {6.032, -0.020, 6.032, 1.020},
+    {5.662, 0.150, 6.032, 0.850},
+    {6.382, -0.020, 6.382, 1.020},
+    {6.457, 0.450, 6.782, 1.020},
+    {6.547, 0.520, 6.787, -0.020},
+    {7.132, -0.020, 7.354, 1.020},
+    {7.354, 1.020, 7.577, -0.020},
+    {7.212, 0.280, 7.497, 0.280},
 };
-constant uint kBadgeEnds[91] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 1, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 3, 1, 0, 0, 0, 0, 2, 3, 3, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 1, 0, 2, 3, 1, 0, 0, 0, 0, 2, 3, 1, 2, 3 };
-constant int kBadgeMarkSegments = 21;
-constant float4 kBadgeMark[21] = {
-    {0.126, 1.529, 0.169, 1.578},
-    {0.169, 1.578, 0.221, 1.589},
-    {0.221, 1.589, 0.272, 1.561},
-    {0.272, 1.561, 0.307, 1.500},
-    {0.307, 1.500, 0.320, 1.420},
-    {0.320, 1.420, 0.307, 1.340},
-    {0.307, 1.340, 0.272, 1.279},
-    {0.272, 1.279, 0.221, 1.251},
-    {0.221, 1.251, 0.169, 1.262},
-    {0.169, 1.262, 0.126, 1.311},
-    {0.150, 1.420, 0.310, 1.420},
-    {0.794, 1.529, 0.751, 1.578},
-    {0.751, 1.578, 0.699, 1.589},
-    {0.699, 1.589, 0.648, 1.561},
-    {0.648, 1.561, 0.613, 1.500},
-    {0.613, 1.500, 0.600, 1.420},
-    {0.600, 1.420, 0.613, 1.340},
-    {0.613, 1.340, 0.648, 1.279},
-    {0.648, 1.279, 0.699, 1.251},
-    {0.699, 1.251, 0.751, 1.262},
-    {0.751, 1.262, 0.794, 1.311},
-};
+constant uint kBadgeEnds[83] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 1, 0, 0, 0, 0, 0, 0, 2, 1, 0, 2, 3, 3, 3, 3, 3, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 2, 3 };
 // end of badge strokes
 
 // The signed distance from p to a rectangle of half-size `size` around the
@@ -404,14 +379,6 @@ static float roundedBox(float2 p, float2 size, float r)
 {
     float2 q = abs(p) - (size - r);
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-}
-
-// The distance from p to the segment s (x0, y0, x1, y1).
-static float segmentDistance(float2 p, float4 s)
-{
-    float2 a = p - s.xy;
-    float2 ba = s.zw - s.xy;
-    return length(a - ba * clamp(dot(a, ba) / max(dot(ba, ba), 1e-8), 0.0, 1.0));
 }
 
 // The distance from p to a stroke along segment s, whose ends are square
@@ -429,31 +396,27 @@ static float strokeDistance(float2 p, float4 s, uint ends)
     return beyond <= 0.0 ? across : square ? max(across, beyond) : length(float2(across, beyond));
 }
 
-// The emblem's light parts at m, in its units from the frame's top left
-// corner, y down: the frame, the spire, its foot and the two letters. The
-// distance to them, in units: negative inside.
+// The emblem's light parts at m, in its radii from its centre, y down: the
+// Lviv television factory's mark, a tick in a basket, in a ring. The
+// basket's handle is a half circle; its body has a flat top, with a round
+// notch where the tick's point dips into it, concave sides that leave its
+// top corners as points, and a foot of two concave arcs that meet in a
+// point, as a bat's wings do. The
+// tick is two strokes with round ends. The distance to them, in radii:
+// negative inside.
 static float emblemMark(float2 m)
 {
-    // The frame, a stroke 0.08 wide inside the unit's width.
-    float frame = abs(roundedBox(m - float2(0.5, 0.5 * kMarkHeight), float2(0.46, 0.5 * kMarkHeight - 0.04), 0.0)) - 0.04;
+    float r = length(m);
+    float2 h = float2(abs(m.x), m.y);
+    float ring = max(r - 1.0, 0.82 - r);
+    float handle = max(abs(r - 0.668) - 0.032, m.y);
+    float body = max(max(max(-0.01 - m.y, m.y - 0.75), 0.926 - length(h - float2(1.477, 0.558))),
+                     max(0.423 - length(h - float2(0.382, 0.897)), 0.2 - r));
+    float2 d = h - float2(0.02, 0.07);
+    float2 e = float2(0.335, -0.418);
+    float tick = length(d - e * saturate(dot(d, e) / dot(e, e))) - 0.074;
 
-    // The spire narrows to a point at the top; its foot flares out over a
-    // concave curve and stands on an arch.
-    const float x0 = 0.46;
-    float v = m.y;
-    float spire = max(abs(m.x - x0) - mix(0.015, 0.07, saturate((v - 0.14) / 1.43)), max(0.14 - v, v - 1.57));
-    float flare = saturate((v - 1.57) / 0.26);
-    float width = 0.07 + 0.26 * flare * flare;
-    float du = m.x - x0;
-    float base = 1.83 - 0.1 * saturate(1.0 - du * du / 0.1);
-    float foot = max(abs(du) - width, max(1.57 - v, v - base));
-    float letters = 1e9;
-
-    for (int i = 0; i < kBadgeMarkSegments; i++) {
-        letters = min(letters, segmentDistance(m, kBadgeMark[i]));
-    }
-
-    return min(min(frame, spire), min(foot, letters - 0.04));
+    return min(min(ring, handle), min(body, tick));
 }
 
 // The badge over `front` at b, from the badge's top left corner, y down.
@@ -477,13 +440,13 @@ static float3 badge(constant CRTUniforms &u, float2 b, float3 front, float pixel
     // The emblem.
     float block = roundedBox(b - float2(0.5 * kBadgeEmblem + 0.002, hs.y), float2(0.5 * kBadgeEmblem, hs.y - 0.003), 0.002);
     colour = mix(colour, paint, 1.0 - smoothstep(-0.5 * pixel, 0.5 * pixel, block));
-    float mark = emblemMark((b - kMarkAt) / kMarkUnit) * kMarkUnit;
+    float mark = emblemMark((b - kEmblemAt) / kEmblemRadius) * kEmblemRadius;
     colour = mix(colour, metal * 0.9, 1.0 - smoothstep(-0.5 * pixel, 0.5 * pixel, mark));
 
     // The lettering, in cap heights, y up.
     float2 t = float2(b.x - kTextAt, hs.y + 0.5 * kCapHeight - b.y) / kCapHeight;
 
-    if (t.x > -0.2 && t.x < 9.3 && t.y > -0.2 && t.y < 1.2) {
+    if (t.x > -0.2 && t.x < 7.9 && t.y > -0.2 && t.y < 1.2) {
         float d = 1e9;
 
         for (int i = 0; i < kBadgeSegments; i++) {
@@ -576,7 +539,7 @@ fragment float4 fsh_crt(VertexOut in [[ stage_in ]],
 
     for (int i = 0; i < 2; i++) {
         float line = base + i;
-        float I = lineIntensity(phosphor, c.x, line, u.afterglow, 0.3, 0.5 * u.bloom);
+        float I = beamLevel(u, lineIntensity(phosphor, c.x, line, u.afterglow, 0.3, 0.5 * u.bloom));
         float d = c.y - (line + 0.5);
         float sigma = u.scanline * (1.0 + u.bloom * I);
         lit += I * exp(-d * d / (2.0 * sigma * sigma));
@@ -598,7 +561,7 @@ fragment float4 fsh_crt(VertexOut in [[ stage_in ]],
         }
     }
 
-    beam += u.glow * halo / 16.0;
+    beam += u.glow * beamLevel(u, halo / 16.0);
     beam = min(beam, 1.0);     // overdriving one channel would desaturate the phosphor colour
 
     // The unlit face: room light off the glass, fading towards the bezel.
@@ -663,6 +626,6 @@ fragment float4 fsh_flat(VertexOut in [[ stage_in ]],
     float2 centre = fract(texel) - 0.5;
     float2 range = 0.5 - 0.5 / scale;
     float2 f = (centre - clamp(centre, -range, range)) * scale + 0.5;
-    float I = beam.sample(linearClamp, (floor(texel) + f) / u.canvas).r;
+    float I = beamLevel(u, beam.sample(linearClamp, (floor(texel) + f) / u.canvas).r);
     return float4(u.phosphor.rgb * I * u.phosphor.w, 1.0);
 }

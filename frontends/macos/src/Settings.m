@@ -6,12 +6,12 @@ static NSString *const kSettingCRTEffects = @"CRTEffects";
 static NSString *const kSettingCurvature = @"CRTCurvature";
 static NSString *const kSettingScanlines = @"CRTScanlines";
 static NSString *const kSettingGlow = @"CRTGlow";
-static NSString *const kSettingBackground = @"CRTBackground";             // what the unlit face gives back of the room light, 0–1
 static NSString *const kSettingFrame = @"CRTFrame";                       // the monitor's plastic, 0–1: dark to light
 static NSString *const kSettingRoom = @"CRTRoom";                         // the room light, 0–1
 static NSString *const kSettingBezel3D = @"CRTBezel3D";                   // the frame's inner wall in perspective
 static NSString *const kSettingMonitorFront = @"CRTMonitorFront";         // the monitor's whole front, with its badge
-static NSString *const kSettingBrightness = @"CRTBrightness";
+static NSString *const kSettingBrightness = @"CRTBlackLevel";            // the beam's black level, 0–1: 0.5 is cutoff
+static NSString *const kSettingContrast = @"CRTContrast";                 // the picture's gain, 0.5–1.5
 static NSString *const kSettingMouseSensitivity = @"MouseSensitivity";   // Juku counts per point
 static NSString *const kSettingKeyClick = @"KeyClick";                   // RomBios key click on/off
 static NSString *const kSettingDriveSounds = @"DriveSounds";             // floppy drive sounds on/off
@@ -36,7 +36,7 @@ static NSString *const kDefaultSystemRom = @"ekta37";
 // The CRT sliders, which Restore CRT Defaults resets.
 static NSArray<NSString *> *crtSettingKeys(void)
 {
-    return @[kSettingCurvature, kSettingScanlines, kSettingGlow, kSettingBackground, kSettingFrame, kSettingRoom, kSettingBrightness];
+    return @[kSettingCurvature, kSettingScanlines, kSettingGlow, kSettingBrightness, kSettingContrast, kSettingFrame, kSettingRoom];
 }
 
 // User preferences in NSUserDefaults. Read on every frame; the values are
@@ -56,12 +56,12 @@ static NSArray<NSString *> *crtSettingKeys(void)
         kSettingCurvature: @0.022,
         kSettingScanlines: @0.68,
         kSettingGlow: @0.085,
-        kSettingBackground: @0.25,
+        kSettingBrightness: @0.5,
+        kSettingContrast: @0.91,
         kSettingFrame: @0.1,
         kSettingRoom: @0.5,
         kSettingBezel3D: @YES,
         kSettingMonitorFront: @NO,
-        kSettingBrightness: @0.91,
         kSettingMouseSensitivity: @0.5,
         kSettingKeyClick: @YES,
         kSettingDriveSounds: @YES,

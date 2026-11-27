@@ -32,12 +32,12 @@
 "Curvature:" = "Curvature:";
 "Scanlines:" = "Scanlines:";
 "Glow:" = "Glow:";
-"Background:" = "Background:";
 "Frame:" = "Frame:";
 "Room Light:" = "Room Light:";
 "3D Frame" = "3D Frame";
 "Whole Monitor" = "Whole Monitor";
 "Brightness:" = "Brightness:";
+"Contrast:" = "Contrast:";
 "Restore CRT Defaults" = "Restore CRT Defaults";
 "Input" = "Input";
 "Capture Mouse" = "Capture Mouse";

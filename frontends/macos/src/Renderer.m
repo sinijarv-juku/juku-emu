@@ -42,10 +42,13 @@ static TubeMargins evenMargins(float margin)
 }
 
 // With Whole Monitor, the tube leaves room for the monitor's front around the
-// glass (Shaders.metal's kFrontSide, kFrontTop and kFrontBottom) and this much
-// of the room around it, in a window and in full screen.
+// glass (Shaders.metal's kFrontSide, kFrontTop and kFrontBottom), and this
+// much of the room at the sides, in a window and in full screen. The front
+// reaches the top and bottom edges: it goes kFrontOver beyond them, so that
+// tubeRect's whole pixels leave no line of the room there.
 static const float kFrontRoom = 0.08f;
-static const TubeMargins kFrontMargins = { 0.30f + kFrontRoom, 0.235f + kFrontRoom, 0.44f + kFrontRoom };
+static const float kFrontOver = 0.01f;
+static const TubeMargins kFrontMargins = { 0.30f + kFrontRoom, 0.235f - kFrontOver, 0.44f - kFrontOver };
 
 #define kInFlightFrames 3
 
@@ -63,10 +66,19 @@ static const float kPhosphorAfterglow = 0.06f;
 // comes back off the grey phosphor behind the glass. Its linear colour, a
 // neutral grey with a slight green cast (from a photo of a switched-off Juku
 // in daylight), scaled to unit luminance, and the share of the room light it
-// gives back at the top of the Background setting. Photos of such tubes in a
-// lit room put the face at 1–4 % of white, video frames at up to 13 %.
+// gives back. Photos of such tubes in a lit room put the face at 1–4 % of
+// white, video frames at up to 13 %.
 static const simd_float3 kBackgroundColour = { 1.0f / 1.0164f, 1.03f / 1.0164f, 0.93f / 1.0164f };
-static const float kFaceMax = 0.4f;
+static const float kFace = 0.1f;
+
+// The Brightness setting is the monitor's brightness knob: it sets the beam's
+// black level. At 0.5 the beam is just cut off for black, as a monitor is set
+// up. Turned up, it is not fully off any more, and the whole raster glows
+// faintly; turned down, white dims. The knob moves the drive by up to
+// kBlackDrive of white's either way, and the tube gives out light as the drive to
+// the power kTubeGamma. Contrast scales the whole picture.
+static const float kBlackDrive = 0.25f;
+static const float kTubeGamma = 2.5f;
 
 // The room light, at the top of the Room Light setting, as a fraction of full
 // white: it lights the monitor's plastic, the badge and the room around it.
@@ -319,7 +331,9 @@ static TubeMargins tubeMargins(BOOL fullScreen)
     float tone = fminf(fmaxf((float)settingDouble(kSettingFrame), 0.0f), 1.0f);
     float plastic = kPlasticDark + (kPlasticLight - kPlasticDark) * tone * tone;
     float room = kRoomMax * fminf(fmaxf((float)settingDouble(kSettingRoom), 0.0f), 1.0f);
-    float background = room * kFaceMax * fminf(fmaxf((float)settingDouble(kSettingBackground), 0.0f), 1.0f);
+    float background = room * kFace;
+    float drive = (fminf(fmaxf((float)settingDouble(kSettingBrightness), 0.0f), 1.0f) - 0.5f) * 2.0f * kBlackDrive;
+    float white = powf(1.0f + drive, kTubeGamma);
     BOOL bezel3d = settingBool(kSettingBezel3D);
     BOOL front = monitorFrontShown() && !thumbnail;
     TubeMargins margins = front ? kFrontMargins
@@ -332,7 +346,7 @@ static TubeMargins tubeMargins(BOOL fullScreen)
         .active = { -kVisibleStartUs * 8.0f, -kVisibleStartLines, JukuRasterBytes * 8.0f, JukuRasterLines },
         .phosphor = {
             srgbToLinear(kPhosphorRed), srgbToLinear(kPhosphorGreen), srgbToLinear(kPhosphorBlue),
-            (float)settingDouble(kSettingBrightness),
+            (float)settingDouble(kSettingContrast) * white,
         },
         .background = simd_make_float4(kBackgroundColour * background, 0.0f),
         .frame = simd_make_float4(kFrameColour * plastic * room, plastic),
@@ -349,6 +363,7 @@ static TubeMargins tubeMargins(BOOL fullScreen)
         .bezel3d = bezel3d,
         .monitorFront = front,
         .room = room,
+        .black = powf(fmaxf(drive, 0.0f), kTubeGamma) / white,
     };
 }
 

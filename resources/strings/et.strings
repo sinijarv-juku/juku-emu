@@ -32,12 +32,12 @@
 "Curvature:" = "Kumerus:";
 "Scanlines:" = "Realaotusjooned:";
 "Glow:" = "Kuma:";
-"Background:" = "Taust:";
 "Frame:" = "Raam:";
 "Room Light:" = "Ruumi valgus:";
 "3D Frame" = "3D raam";
 "Whole Monitor" = "Kogu monitor";
 "Brightness:" = "Heledus:";
+"Contrast:" = "Kontrastsus:";
 "Restore CRT Defaults" = "Taasta kineskoobi vaikeseaded";
 "Input" = "Sisend";
 "Capture Mouse" = "Haara hiir";

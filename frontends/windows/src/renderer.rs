@@ -42,10 +42,13 @@ pub const TUBE_ASPECT: f32 = 4.0 / 3.0;
 const WINDOW_BEZEL: f32 = 0.095;
 
 /// With Whole Monitor, the tube leaves room for the monitor's front around
-/// the glass (Shaders.hlsl's kFrontSide, kFrontTop and kFrontBottom) and
-/// this much of the room around it, in a window and in full screen.
+/// the glass (Shaders.hlsl's kFrontSide, kFrontTop and kFrontBottom), and
+/// this much of the room at the sides, in a window and in full screen. The
+/// front reaches the top and bottom edges: it goes FRONT_OVER beyond them,
+/// so that tube_rect's whole pixels leave no line of the room there.
 const FRONT_ROOM: f32 = 0.08;
-const FRONT_MARGINS: TubeMargins = TubeMargins { side: 0.30 + FRONT_ROOM, top: 0.235 + FRONT_ROOM, bottom: 0.44 + FRONT_ROOM };
+const FRONT_OVER: f32 = 0.01;
+const FRONT_MARGINS: TubeMargins = TubeMargins { side: 0.30 + FRONT_ROOM, top: 0.235 - FRONT_OVER, bottom: 0.44 - FRONT_OVER };
 
 const IN_FLIGHT: usize = 3;
 const BUFFERS: u32 = 3;
@@ -61,18 +64,26 @@ const PHOSPHOR_SLOW_MS: f32 = 60.0;
 const PHOSPHOR_AFTERGLOW: f32 = 0.06;
 
 // The unlit face (Renderer.m): a linear colour scaled to unit luminance, and
-// the share of the room light it gives back at the top of the Background
-// setting. The room light at the top of the Room Light setting, which lights
+// the share of the room light it gives back. The room light at the top of the Room Light setting, which lights
 // the monitor's plastic, the badge and the room around it, and the plastic,
 // a neutral charcoal, which reflects a share of it that the Frame setting
 // sets, its tone: from near black to light gray over the square of the
 // setting.
 const BACKGROUND_COLOUR: [f32; 3] = [1.0 / 1.0164, 1.03 / 1.0164, 0.93 / 1.0164];
-const FACE_MAX: f32 = 0.4;
+const FACE: f32 = 0.1;
 const FRAME_COLOUR: [f32; 3] = [1.0, 0.97, 0.92];
 const ROOM_MAX: f32 = 0.4;
 const PLASTIC_DARK: f32 = 0.025;
 const PLASTIC_LIGHT: f32 = 0.6;
+
+// The Brightness setting is the monitor's brightness knob: it sets the beam's
+// black level. At 0.5 the beam is just cut off for black, as a monitor is set
+// up. Turned up, it is not fully off any more, and the whole raster glows
+// faintly; turned down, white dims. The knob moves the drive by up to
+// BLACK_DRIVE of white's either way, and the tube gives out light as the drive to
+// the power TUBE_GAMMA. Contrast scales the whole picture. (Renderer.m)
+const BLACK_DRIVE: f32 = 0.25;
+const TUBE_GAMMA: f32 = 2.5;
 
 // Beam sigma in raster lines at the two ends of the Scanlines setting.
 const SCANLINE_SOFT: f32 = 0.42;
@@ -92,12 +103,12 @@ pub struct CrtSettings {
     pub curvature: f32,
     pub scanlines: f32,
     pub glow: f32,
-    pub background: f32,
+    pub brightness: f32,
+    pub contrast: f32,
     pub frame: f32,
     pub room: f32,
     pub bezel3d: bool,
     pub monitor_front: bool,
-    pub brightness: f32,
 }
 
 impl Default for CrtSettings {
@@ -108,12 +119,12 @@ impl Default for CrtSettings {
             curvature: 0.022,
             scanlines: 0.68,
             glow: 0.085,
-            background: 0.25,
+            brightness: 0.5,
+            contrast: 0.91,
             frame: 0.1,
             room: 0.5,
             bezel3d: true,
             monitor_front: false,
-            brightness: 0.91,
         }
     }
 }
@@ -170,7 +181,7 @@ struct CrtUniforms {
     bezel3d: u32,
     monitor_front: u32,
     room: f32,
-    pad: u32,
+    black: f32,
 }
 
 const UNIFORM_WORDS: u32 = (size_of::<CrtUniforms>() / 4) as u32;
@@ -964,7 +975,9 @@ impl Renderer {
         let tone = unit(settings.frame);
         let plastic = PLASTIC_DARK + (PLASTIC_LIGHT - PLASTIC_DARK) * tone * tone;
         let room = ROOM_MAX * unit(settings.room);
-        let background = room * FACE_MAX * unit(settings.background);
+        let background = room * FACE;
+        let drive = (unit(settings.brightness) - 0.5) * 2.0 * BLACK_DRIVE;
+        let white = (1.0 + drive).powf(TUBE_GAMMA);
         let frame_level = plastic * room;
         let [r, g, b] = PHOSPHOR_RGB.map(|c| srgb_to_linear(c as f32 / 255.0));
 
@@ -977,7 +990,7 @@ impl Renderer {
                 RASTER_BYTES as f32 * 8.0,
                 RASTER_LINES as f32,
             ],
-            phosphor: [r, g, b, settings.brightness],
+            phosphor: [r, g, b, settings.contrast * white],
             background: [BACKGROUND_COLOUR[0] * background, BACKGROUND_COLOUR[1] * background, BACKGROUND_COLOUR[2] * background, 0.0],
             frame: [FRAME_COLOUR[0] * frame_level, FRAME_COLOUR[1] * frame_level, FRAME_COLOUR[2] * frame_level, plastic],
             canvas: [CANVAS_WIDTH as f32, CANVAS_HEIGHT as f32],
@@ -993,7 +1006,7 @@ impl Renderer {
             bezel3d: settings.bezel3d as u32,
             monitor_front: (settings.crt_effects && settings.monitor_front) as u32,
             room,
-            pad: 0,
+            black: drive.max(0.0).powf(TUBE_GAMMA) / white,
         }
     }
 
