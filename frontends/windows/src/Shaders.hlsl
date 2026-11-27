@@ -289,97 +289,108 @@ static const float kMarkUnit = 0.055;                    // the frame's width
 static const float kMarkHeight = 2.04;                   // and its height, in units
 static const float kTextAt = 0.148;
 static const float kCapHeight = 0.056;
-static const float kStroke = 0.095;
+static const float kStroke = 0.09;
 
 // "электроника" and the emblem's Э and С as strokes, x0, y0, x1, y1: the
 // word in cap heights, x from its start and y up from the baseline, the
 // letters in the emblem's units, x from the frame's left edge and y down.
 // badge strokes: made by tools/badge_glyphs.py, not edited by hand
-// The word, 9.06 cap heights wide.
-static const int kBadgeSegments = 81;
-static const float4 kBadgeText[81] = {
-    float4(0.139, 0.767, 0.212, 0.871),
-    float4(0.212, 0.871, 0.302, 0.914),
-    float4(0.302, 0.914, 0.394, 0.890),
-    float4(0.394, 0.890, 0.473, 0.802),
-    float4(0.473, 0.802, 0.526, 0.664),
-    float4(0.526, 0.664, 0.545, 0.500),
-    float4(0.545, 0.500, 0.526, 0.336),
-    float4(0.526, 0.336, 0.473, 0.198),
-    float4(0.473, 0.198, 0.394, 0.110),
-    float4(0.394, 0.110, 0.302, 0.086),
-    float4(0.302, 0.086, 0.212, 0.129),
-    float4(0.212, 0.129, 0.139, 0.233),
-    float4(0.170, 0.500, 0.545, 0.500),
-    float4(0.810, 0.085, 0.900, 0.110),
-    float4(0.900, 0.110, 0.960, 0.240),
-    float4(0.960, 0.240, 0.985, 0.450),
-    float4(0.985, 0.450, 0.990, 0.915),
-    float4(0.990, 0.915, 1.455, 0.915),
-    float4(1.455, 0.915, 1.455, 0.085),
-    float4(2.305, 0.500, 2.284, 0.660),
-    float4(2.284, 0.660, 2.224, 0.796),
-    float4(2.224, 0.796, 2.136, 0.885),
-    float4(2.136, 0.885, 2.031, 0.915),
-    float4(2.031, 0.915, 1.927, 0.880),
-    float4(1.927, 0.880, 1.840, 0.787),
-    float4(1.840, 0.787, 1.783, 0.649),
-    float4(1.783, 0.649, 1.765, 0.488),
-    float4(1.765, 0.488, 1.789, 0.328),
-    float4(1.789, 0.328, 1.851, 0.196),
-    float4(1.851, 0.196, 1.942, 0.110),
-    float4(1.942, 0.110, 2.047, 0.085),
-    float4(2.047, 0.085, 2.150, 0.125),
-    float4(2.150, 0.125, 2.236, 0.222),
-    float4(1.765, 0.500, 2.305, 0.500),
-    float4(2.615, 0.085, 2.615, 0.915),
-    float4(3.130, 0.915, 2.615, 0.460),
-    float4(2.780, 0.600, 3.150, 0.085),
-    float4(3.360, 0.915, 4.070, 0.915),
-    float4(3.715, 0.915, 3.715, 0.085),
-    float4(4.325, 0.085, 4.325, 0.915),
-    float4(4.325, 0.915, 4.590, 0.915),
-    float4(4.590, 0.915, 4.590, 0.915),
-    float4(4.590, 0.915, 4.676, 0.898),
-    float4(4.676, 0.898, 4.749, 0.849),
-    float4(4.749, 0.849, 4.798, 0.776),
-    float4(4.798, 0.776, 4.815, 0.690),
-    float4(4.815, 0.690, 4.798, 0.604),
-    float4(4.798, 0.604, 4.749, 0.531),
-    float4(4.749, 0.531, 4.676, 0.482),
-    float4(4.676, 0.482, 4.590, 0.465),
-    float4(4.590, 0.465, 4.325, 0.465),
-    float4(5.725, 0.500, 5.707, 0.642),
-    float4(5.707, 0.642, 5.655, 0.767),
-    float4(5.655, 0.767, 5.575, 0.859),
-    float4(5.575, 0.859, 5.477, 0.909),
-    float4(5.477, 0.909, 5.373, 0.909),
-    float4(5.373, 0.909, 5.275, 0.859),
-    float4(5.275, 0.859, 5.195, 0.767),
-    float4(5.195, 0.767, 5.143, 0.642),
-    float4(5.143, 0.642, 5.125, 0.500),
-    float4(5.125, 0.500, 5.143, 0.358),
-    float4(5.143, 0.358, 5.195, 0.233),
-    float4(5.195, 0.233, 5.275, 0.141),
-    float4(5.275, 0.141, 5.373, 0.091),
-    float4(5.373, 0.091, 5.477, 0.091),
-    float4(5.477, 0.091, 5.575, 0.141),
-    float4(5.575, 0.141, 5.655, 0.233),
-    float4(5.655, 0.233, 5.707, 0.358),
-    float4(5.707, 0.358, 5.725, 0.500),
-    float4(6.035, 0.085, 6.035, 0.915),
-    float4(6.525, 0.085, 6.525, 0.915),
-    float4(6.035, 0.500, 6.525, 0.500),
-    float4(6.835, 0.915, 6.835, 0.085),
-    float4(6.835, 0.085, 7.325, 0.915),
-    float4(7.325, 0.915, 7.325, 0.085),
-    float4(7.635, 0.085, 7.635, 0.915),
-    float4(8.150, 0.915, 7.635, 0.460),
-    float4(7.800, 0.600, 8.170, 0.085),
-    float4(8.390, 0.085, 8.705, 0.915),
-    float4(8.705, 0.915, 9.020, 0.085),
-    float4(8.520, 0.330, 8.890, 0.330),
+// The word, 8.96 cap heights wide.
+static const int kBadgeSegments = 91;
+static const float4 kBadgeText[91] = {
+    float4(0.141, 0.764, 0.211, 0.866),
+    float4(0.211, 0.866, 0.297, 0.909),
+    float4(0.297, 0.909, 0.385, 0.885),
+    float4(0.385, 0.885, 0.461, 0.798),
+    float4(0.461, 0.798, 0.512, 0.662),
+    float4(0.512, 0.662, 0.530, 0.500),
+    float4(0.530, 0.500, 0.512, 0.338),
+    float4(0.512, 0.338, 0.461, 0.202),
+    float4(0.461, 0.202, 0.385, 0.115),
+    float4(0.385, 0.115, 0.297, 0.091),
+    float4(0.297, 0.091, 0.211, 0.134),
+    float4(0.211, 0.134, 0.141, 0.236),
+    float4(0.200, 0.500, 0.530, 0.500),
+    float4(0.810, 0.090, 0.910, 0.120),
+    float4(0.910, 0.120, 0.980, 0.250),
+    float4(0.980, 0.250, 1.010, 0.450),
+    float4(1.010, 0.450, 1.020, 0.910),
+    float4(1.020, 0.910, 1.470, 0.910),
+    float4(1.470, 0.910, 1.470, -0.020),
+    float4(2.290, 0.500, 2.273, 0.658),
+    float4(2.273, 0.658, 2.223, 0.792),
+    float4(2.223, 0.792, 2.149, 0.881),
+    float4(2.149, 0.881, 2.062, 0.910),
+    float4(2.062, 0.910, 1.975, 0.876),
+    float4(1.975, 0.876, 1.902, 0.783),
+    float4(1.902, 0.783, 1.855, 0.647),
+    float4(1.855, 0.647, 1.840, 0.488),
+    float4(1.840, 0.488, 1.860, 0.330),
+    float4(1.860, 0.330, 1.912, 0.199),
+    float4(1.912, 0.199, 1.988, 0.115),
+    float4(1.988, 0.115, 2.075, 0.090),
+    float4(2.075, 0.090, 2.161, 0.129),
+    float4(2.161, 0.129, 2.232, 0.226),
+    float4(1.840, 0.500, 2.290, 0.500),
+    float4(2.660, -0.020, 2.660, 1.020),
+    float4(2.660, 0.480, 2.900, 0.480),
+    float4(2.900, 0.480, 2.980, 0.500),
+    float4(2.980, 0.500, 3.040, 0.560),
+    float4(3.040, 0.560, 3.080, 0.650),
+    float4(3.080, 0.650, 3.095, 0.770),
+    float4(3.095, 0.770, 3.100, 1.020),
+    float4(2.880, 0.480, 3.100, -0.020),
+    float4(3.460, 0.910, 3.870, 0.910),
+    float4(3.665, 0.910, 3.665, -0.020),
+    float4(4.240, -0.020, 4.240, 0.910),
+    float4(4.240, 0.910, 4.450, 0.910),
+    float4(4.450, 0.910, 4.450, 0.920),
+    float4(4.450, 0.920, 4.538, 0.902),
+    float4(4.538, 0.902, 4.613, 0.853),
+    float4(4.613, 0.853, 4.662, 0.778),
+    float4(4.662, 0.778, 4.680, 0.690),
+    float4(4.680, 0.690, 4.662, 0.602),
+    float4(4.662, 0.602, 4.613, 0.527),
+    float4(4.613, 0.527, 4.538, 0.478),
+    float4(4.538, 0.478, 4.450, 0.460),
+    float4(4.450, 0.460, 4.240, 0.460),
+    float4(5.540, 0.500, 5.525, 0.640),
+    float4(5.525, 0.640, 5.482, 0.764),
+    float4(5.482, 0.764, 5.415, 0.855),
+    float4(5.415, 0.855, 5.333, 0.904),
+    float4(5.333, 0.904, 5.247, 0.904),
+    float4(5.247, 0.904, 5.165, 0.855),
+    float4(5.165, 0.855, 5.098, 0.764),
+    float4(5.098, 0.764, 5.055, 0.640),
+    float4(5.055, 0.640, 5.040, 0.500),
+    float4(5.040, 0.500, 5.055, 0.360),
+    float4(5.055, 0.360, 5.098, 0.236),
+    float4(5.098, 0.236, 5.165, 0.145),
+    float4(5.165, 0.145, 5.247, 0.096),
+    float4(5.247, 0.096, 5.333, 0.096),
+    float4(5.333, 0.096, 5.415, 0.145),
+    float4(5.415, 0.145, 5.482, 0.236),
+    float4(5.482, 0.236, 5.525, 0.360),
+    float4(5.525, 0.360, 5.540, 0.500),
+    float4(5.910, -0.020, 5.910, 1.020),
+    float4(6.370, -0.020, 6.370, 1.020),
+    float4(5.910, 0.500, 6.370, 0.500),
+    float4(6.740, 1.020, 6.740, 0.090),
+    float4(6.740, 0.090, 7.220, 0.910),
+    float4(7.220, 0.910, 7.220, -0.020),
+    float4(7.590, -0.020, 7.590, 1.020),
+    float4(7.590, 0.480, 7.830, 0.480),
+    float4(7.830, 0.480, 7.910, 0.500),
+    float4(7.910, 0.500, 7.970, 0.560),
+    float4(7.970, 0.560, 8.010, 0.650),
+    float4(8.010, 0.650, 8.025, 0.770),
+    float4(8.025, 0.770, 8.030, 1.020),
+    float4(7.810, 0.480, 8.030, -0.020),
+    float4(8.370, -0.020, 8.630, 1.020),
+    float4(8.630, 1.020, 8.890, -0.020),
+    float4(8.480, 0.300, 8.780, 0.300),
 };
+static const uint kBadgeEnds[91] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 1, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 3, 1, 0, 0, 0, 0, 2, 3, 3, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 1, 0, 2, 3, 1, 0, 0, 0, 0, 2, 3, 1, 2, 3 };
 static const int kBadgeMarkSegments = 21;
 static const float4 kBadgeMark[21] = {
     float4(0.126, 1.529, 0.169, 1.578),
@@ -420,6 +431,21 @@ float segmentDistance(float2 p, float4 s)
     float2 a = p - s.xy;
     float2 ba = s.zw - s.xy;
     return length(a - ba * clamp(dot(a, ba) / max(dot(ba, ba), 1e-8), 0.0, 1.0));
+}
+
+// The distance from p to a stroke along segment s, whose ends are square
+// where `ends` says the path ends there (bit 0 its start, bit 1 its end)
+// and round where it meets the next segment, so curves stay smooth.
+float strokeDistance(float2 p, float4 s, uint ends)
+{
+    float2 a = p - s.xy;
+    float len = length(s.zw - s.xy);
+    float2 dir = (s.zw - s.xy) / len;
+    float along = dot(a, dir);
+    float across = abs(dir.x * a.y - dir.y * a.x);
+    float beyond = max(-along, along - len);
+    bool square = (ends & (along < 0.0 ? 1u : 2u)) != 0u;
+    return beyond <= 0.0 ? across : square ? max(across, beyond) : length(float2(across, beyond));
 }
 
 // The emblem's light parts at m, in its units from the frame's top left
@@ -481,11 +507,13 @@ float3 badge(float2 b, float3 front, float pixel)
 
             [loop]
             for (int i = 0; i < kBadgeSegments; i++) {
-                d = min(d, segmentDistance(t, kBadgeText[i]));
+                d = min(d, strokeDistance(t, kBadgeText[i], kBadgeEnds[i]));
             }
 
+            // Cut off at the baseline and the cap height, so diagonals end flat.
+            float shape = max(d - kStroke, max(-t.y, t.y - 1.0));
             float soft = 0.5 * pixel / kCapHeight;
-            colour = lerp(colour, paint, 1.0 - smoothstep(kStroke - soft, kStroke + soft, d));
+            colour = lerp(colour, paint, 1.0 - smoothstep(-soft, soft, shape));
         }
 
         result = lerp(front, colour, plate);
