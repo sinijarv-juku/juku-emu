@@ -61,14 +61,14 @@ const PHOSPHOR_SLOW_MS: f32 = 60.0;
 const PHOSPHOR_AFTERGLOW: f32 = 0.06;
 
 // The unlit face (Renderer.m): a linear colour scaled to unit luminance, and
-// its level at the top of the Background setting, as a fraction of full
-// white. The room light at the top of the Room Light setting, which lights
+// the share of the room light it gives back at the top of the Background
+// setting. The room light at the top of the Room Light setting, which lights
 // the monitor's plastic, the badge and the room around it, and the plastic,
 // a neutral charcoal, which reflects a share of it that the Frame setting
 // sets, its tone: from near black to light gray over the square of the
 // setting.
 const BACKGROUND_COLOUR: [f32; 3] = [1.0 / 1.0164, 1.03 / 1.0164, 0.93 / 1.0164];
-const BACKGROUND_MAX: f32 = 0.08;
+const FACE_MAX: f32 = 0.4;
 const FRAME_COLOUR: [f32; 3] = [1.0, 0.97, 0.92];
 const ROOM_MAX: f32 = 0.4;
 const PLASTIC_DARK: f32 = 0.025;
@@ -108,9 +108,9 @@ impl Default for CrtSettings {
             curvature: 0.022,
             scanlines: 0.68,
             glow: 0.085,
-            background: 0.175,
+            background: 0.25,
             frame: 0.1,
-            room: 0.32,
+            room: 0.5,
             bezel3d: true,
             monitor_front: false,
             brightness: 0.91,
@@ -961,10 +961,10 @@ impl Renderer {
         // Long enough and both decays are zero: nothing is left of the old picture.
         let dt = elapsed.clamp(0.0, 10.0) as f32;
         let unit = |v: f32| v.clamp(0.0, 1.0);
-        let background = BACKGROUND_MAX * unit(settings.background);
         let tone = unit(settings.frame);
         let plastic = PLASTIC_DARK + (PLASTIC_LIGHT - PLASTIC_DARK) * tone * tone;
         let room = ROOM_MAX * unit(settings.room);
+        let background = room * FACE_MAX * unit(settings.background);
         let frame_level = plastic * room;
         let [r, g, b] = PHOSPHOR_RGB.map(|c| srgb_to_linear(c as f32 / 255.0));
 

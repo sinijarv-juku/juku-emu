@@ -59,15 +59,14 @@ static const float kPhosphorFastMs = 5.0f;
 static const float kPhosphorSlowMs = 60.0f;
 static const float kPhosphorAfterglow = 0.06f;
 
-// The unlit face of the МС6105 is not black: room light comes back off the
-// grey phosphor behind the glass. Its linear colour, a neutral grey with a
-// slight green cast (from a photo of a switched-off Juku in daylight), scaled
-// to unit luminance, and the level at the top of the Background setting, as a
-// fraction of full white. Video frames of a working Juku in a lit room put it
-// at 5–13 %, but the camera brightened them; other photos of such tubes give
-// 1–4 %, and 8 % at the top of the scale looked natural in the app.
+// The unlit face of the МС6105 is not black: the room light (Room Light)
+// comes back off the grey phosphor behind the glass. Its linear colour, a
+// neutral grey with a slight green cast (from a photo of a switched-off Juku
+// in daylight), scaled to unit luminance, and the share of the room light it
+// gives back at the top of the Background setting. Photos of such tubes in a
+// lit room put the face at 1–4 % of white, video frames at up to 13 %.
 static const simd_float3 kBackgroundColour = { 1.0f / 1.0164f, 1.03f / 1.0164f, 0.93f / 1.0164f };
-static const float kBackgroundMax = 0.08f;
+static const float kFaceMax = 0.4f;
 
 // The room light, at the top of the Room Light setting, as a fraction of full
 // white: it lights the monitor's plastic, the badge and the room around it.
@@ -317,10 +316,10 @@ static TubeMargins tubeMargins(BOOL fullScreen)
     // Long enough and both decays are zero: nothing is left of the old picture.
     float dt = (float)fmin(fmax(elapsed, 0.0), 10.0);
     float scanlines = (float)settingDouble(kSettingScanlines);
-    float background = kBackgroundMax * fminf(fmaxf((float)settingDouble(kSettingBackground), 0.0f), 1.0f);
     float tone = fminf(fmaxf((float)settingDouble(kSettingFrame), 0.0f), 1.0f);
     float plastic = kPlasticDark + (kPlasticLight - kPlasticDark) * tone * tone;
     float room = kRoomMax * fminf(fmaxf((float)settingDouble(kSettingRoom), 0.0f), 1.0f);
+    float background = room * kFaceMax * fminf(fmaxf((float)settingDouble(kSettingBackground), 0.0f), 1.0f);
     BOOL bezel3d = settingBool(kSettingBezel3D);
     BOOL front = monitorFrontShown() && !thumbnail;
     TubeMargins margins = front ? kFrontMargins

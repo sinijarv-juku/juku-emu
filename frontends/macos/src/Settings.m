@@ -6,7 +6,7 @@ static NSString *const kSettingCRTEffects = @"CRTEffects";
 static NSString *const kSettingCurvature = @"CRTCurvature";
 static NSString *const kSettingScanlines = @"CRTScanlines";
 static NSString *const kSettingGlow = @"CRTGlow";
-static NSString *const kSettingBackground = @"CRTBackground";             // unlit face level, 0–1
+static NSString *const kSettingBackground = @"CRTBackground";             // what the unlit face gives back of the room light, 0–1
 static NSString *const kSettingFrame = @"CRTFrame";                       // the monitor's plastic, 0–1: dark to light
 static NSString *const kSettingRoom = @"CRTRoom";                         // the room light, 0–1
 static NSString *const kSettingBezel3D = @"CRTBezel3D";                   // the frame's inner wall in perspective
@@ -56,9 +56,9 @@ static NSArray<NSString *> *crtSettingKeys(void)
         kSettingCurvature: @0.022,
         kSettingScanlines: @0.68,
         kSettingGlow: @0.085,
-        kSettingBackground: @0.175,
+        kSettingBackground: @0.25,
         kSettingFrame: @0.1,
-        kSettingRoom: @0.32,
+        kSettingRoom: @0.5,
         kSettingBezel3D: @YES,
         kSettingMonitorFront: @NO,
         kSettingBrightness: @0.91,
