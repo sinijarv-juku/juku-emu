@@ -15,6 +15,8 @@ crate-type = ["cdylib"]
 test = false
 
 [dependencies]
+# The core finds the picture in a snapshot file.
+juku = { path = "../../../core" }
 # The `implement` macro names this crate.
 windows-core = "=0.62.2"
 

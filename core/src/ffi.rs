@@ -593,11 +593,11 @@ fn snapshot_error(e: SnapshotError) -> i32 {
     }
 }
 
-/// Saves the machine as a snapshot file: a PNG showing `thumbnail` (a whole
-/// PNG file), or the screen as the core sees it if `thumbnail` is NULL, with
-/// the machine state and the `count` host sections in it. Returns the file,
-/// to be released with [`juku_snapshot_free`], and its length in `len`; or
-/// NULL if the thumbnail is not a valid PNG or a tag is not a host tag.
+/// Saves the machine as a snapshot file: the machine state, `thumbnail` (a
+/// whole PNG file) as its picture, or the screen as the core sees it if
+/// `thumbnail` is NULL, and the `count` host sections. Returns the file, to
+/// be released with [`juku_snapshot_free`], and its length in `len`; or NULL
+/// if the thumbnail is not a valid PNG or a tag is not a host tag.
 ///
 /// # Safety
 /// `m` must be a valid machine pointer and `len` a valid pointer.

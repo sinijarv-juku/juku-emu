@@ -47,6 +47,7 @@ source = "git+https://github.com/sinijarv-juku/juku-sdk?tag=v0.3.0#bb5b3950b65d6
 name = "juku-thumbnail"
 version = "0.0.0"
 dependencies = [
+ "juku",
  "windows",
  "windows-core",
 ]

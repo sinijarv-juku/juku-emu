@@ -1,5 +1,5 @@
 //! Snapshot files (frontends/macos/src/Snapshots.m and the snapshot half of
-//! Main.m, spec §6.8, §11.4): the core's PNG holding the machine (§4.6), with
+//! Main.m, spec §6.8, §11.4): the core's file holding the machine (§4.6), with
 //! a `meta` section from the app, and a `win ` section with the files the
 //! snapshot came from, sealed so that only this installation can read it.
 //! ROMs in a snapshot are matched to the bundled ROMs and the user's files by

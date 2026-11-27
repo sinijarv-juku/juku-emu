@@ -642,12 +642,13 @@ fn read_section<'a, T>(s: &Sections<'a>, tag: &[u8; 4], f: impl FnOnce(&mut Read
 
 /// Snapshots (spec §4.6).
 impl Machine {
-    /// Saves the machine as a snapshot file. `thumbnail` is the PNG the file
-    /// shows as a picture; without one the core uses the frame as it is.
-    /// The `host` sections are stored as they are, and their tags must start
-    /// with a lowercase letter. Returns `None` for a bad thumbnail or tag.
+    /// Saves the machine as a snapshot file. `thumbnail` is the PNG stored
+    /// for Finder's and Explorer's thumbnails; without one the core uses the
+    /// frame as it is. The `host` sections are stored as they are, and their
+    /// tags must start with a lowercase letter. Returns `None` for a bad
+    /// thumbnail or tag.
     pub fn save_snapshot(&self, thumbnail: Option<&[u8]>, host: &[([u8; 4], &[u8])]) -> Option<Vec<u8>> {
-        if !host.iter().all(|(tag, _)| snapshot::is_host_tag(tag)) {
+        if !host.iter().all(|(tag, _)| snapshot::is_host_tag(tag)) || thumbnail.is_some_and(|png| !snapshot::is_png(png)) {
             return None;
         }
         let own;
@@ -658,7 +659,11 @@ impl Machine {
                 &own
             }
         };
-        let mut file = SnapshotWriter::new(png)?;
+        let mut file = SnapshotWriter::new();
+        // The version first, then the picture, which a thumbnailer reads
+        // without the state.
+        file.section(*b"SNAP", &snapshot::VERSION.to_le_bytes());
+        file.section(snapshot::THUMBNAIL, png);
         for (tag, data) in self.sections() {
             file.section(tag, &data);
         }
@@ -693,7 +698,6 @@ impl Machine {
     fn sections(&self) -> Vec<([u8; 4], Vec<u8>)> {
         let s = &self.sys;
         vec![
-            section(*b"SNAP", |w| w.u32(snapshot::VERSION)),
             section(*b"SYS ", |w| {
                 w.u8(s.mode);
                 w.u64(s.cycles);

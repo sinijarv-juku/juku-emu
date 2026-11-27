@@ -1,8 +1,7 @@
 //! The Explorer thumbnail handler for snapshots (spec §11.6), the counterpart
-//! of frontends/macos/src/thumbnail/Thumbnail.m. A snapshot is a PNG whose
-//! picture is the screen, so the thumbnail is that picture, scaled to the
-//! size asked for. WIC reads it by its PNG signature, whatever the file's
-//! extension, and skips the state in the private chunks.
+//! of frontends/macos/src/thumbnail/Thumbnail.m. A snapshot holds a PNG of
+//! the screen in its `THMB` section, which the core finds (spec §4.6), so
+//! the thumbnail is that picture, scaled to the size asked for.
 //!
 //! JukuThumbnail.dll is an in-process COM server with one class, an
 //! `IThumbnailProvider` taking its file through `IInitializeWithStream`.
@@ -73,7 +72,8 @@ impl IThumbnailProvider_Impl for Provider_Impl {
 
         let file = self.file.lock().map_err(|_| Error::from(E_FAIL))?;
         let file = file.as_deref().ok_or(Error::from(E_FAIL))?;
-        let (width, height, pixels) = scaled_picture(file, cx.max(1))?;
+        let png = juku::snapshot::thumbnail(file).ok_or(Error::from(E_FAIL))?;
+        let (width, height, pixels) = scaled_picture(png, cx.max(1))?;
 
         let info = BITMAPINFO {
             bmiHeader: BITMAPINFOHEADER {
@@ -106,11 +106,11 @@ impl IThumbnailProvider_Impl for Provider_Impl {
 }
 
 /// The PNG's picture scaled so that its longer side is `size`, as BGRA rows.
-fn scaled_picture(file: &[u8], size: u32) -> Result<(u32, u32, Vec<u8>)> {
+fn scaled_picture(png: &[u8], size: u32) -> Result<(u32, u32, Vec<u8>)> {
     unsafe {
         let factory: IWICImagingFactory = CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_INPROC_SERVER)?;
         let stream = factory.CreateStream()?;
-        stream.InitializeFromMemory(file)?;
+        stream.InitializeFromMemory(png)?;
         let decoder = factory.CreateDecoderFromStream(&stream, std::ptr::null(), WICDecodeMetadataCacheOnDemand)?;
         let frame = decoder.GetFrame(0)?;
         let (mut width, mut height) = (0, 0);

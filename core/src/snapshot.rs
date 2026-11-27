@@ -1,10 +1,10 @@
-//! Snapshot files (spec §4.6): the whole machine state inside a PNG.
+//! Snapshot files (spec §4.6): the whole machine state in a file of its own.
 //!
-//! A snapshot is a valid PNG whose picture is a thumbnail of the screen.
-//! The state follows the image data, in private ancillary chunks of type
-//! `juKu`, each holding one section: a 4-byte tag and the section's bytes.
-//! Image viewers skip those chunks; every chunk carries the PNG CRC, so a
-//! damaged file is caught before anything is decoded.
+//! A snapshot is a signature and a run of sections, each a 4-byte tag, its
+//! length, its bytes and a CRC-32, ending with an empty `END ` section, so
+//! a damaged or truncated file is caught before anything is decoded. `SNAP`
+//! comes first with the format version, then `THMB`, a PNG of the screen
+//! for Finder's and Explorer's thumbnails.
 //!
 //! Section tags in capitals belong to the core. Tags that start with a
 //! lowercase letter belong to the host, which the core stores and returns
@@ -15,22 +15,32 @@ use crate::lz;
 use crate::video::Frame;
 
 /// Format version written into the `SNAP` section, the only one read.
-/// Version 4 compresses the memory, the ROMs and the raster's frames as
-/// well (`lz`); version 3 compressed the disks only, version 2 nothing, and
-/// version 1 also had the active picture (`FRAM`) in place of the beam's
-/// raster (`RAST`). No release wrote them.
-pub const VERSION: u32 = 4;
+/// Version 5 is a file of its own. Version 4 had the same sections in a
+/// PNG, in private chunks after the picture; version 3 compressed the disks
+/// only, version 2 nothing, and version 1 also had the active picture
+/// (`FRAM`) in place of the beam's raster (`RAST`). Only version 4 was
+/// released.
+pub const VERSION: u32 = 5;
+
+/// The first bytes of a snapshot file. As in PNG's signature, the byte
+/// with its top bit set, CR LF, Ctrl-Z and LF catch a file mangled by a
+/// transfer as text.
+pub const SIGNATURE: [u8; 9] = [0x8A, b'J', b'U', b'K', b'U', 0x0D, 0x0A, 0x1A, 0x0A];
+/// The section that ends the file, with no data.
+const END: [u8; 4] = *b"END ";
+/// The section holding the thumbnail, a PNG.
+pub const THUMBNAIL: [u8; 4] = *b"THMB";
 
 const PNG_SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
-/// Ancillary, private, safe to copy.
-const CHUNK_TYPE: [u8; 4] = *b"juKu";
 const IEND: [u8; 4] = *b"IEND";
+/// The chunk type of a version 4 file's sections.
+const OLD_CHUNK_TYPE: [u8; 4] = *b"juKu";
 /// PNG chunk lengths are limited to 2³¹ − 1.
 const MAX_CHUNK: usize = 0x7FFF_FFFF;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SnapshotError {
-    /// Not a PNG, or a PNG without a snapshot in it.
+    /// Not a snapshot file.
     NotSnapshot,
     /// A snapshot, but truncated, failing a CRC or holding impossible state.
     Damaged,
@@ -68,75 +78,118 @@ fn adler32(data: &[u8]) -> u32 {
     b << 16 | a
 }
 
-fn put_chunk(out: &mut Vec<u8>, kind: [u8; 4], parts: &[&[u8]]) {
-    let len: usize = parts.iter().map(|p| p.len()).sum();
-    out.extend_from_slice(&(len as u32).to_be_bytes());
+/// A PNG chunk: big-endian length, type, data, CRC.
+fn put_chunk(out: &mut Vec<u8>, kind: [u8; 4], data: &[u8]) {
+    out.extend_from_slice(&(data.len() as u32).to_be_bytes());
     out.extend_from_slice(&kind);
-    for p in parts {
-        out.extend_from_slice(p);
-    }
-    let mut covered: Vec<&[u8]> = vec![&kind];
-    covered.extend_from_slice(parts);
-    out.extend_from_slice(&crc32(&covered).to_be_bytes());
+    out.extend_from_slice(data);
+    out.extend_from_slice(&crc32(&[&kind, data]).to_be_bytes());
 }
 
 /// A PNG chunk, or a section: its 4-byte type or tag, and its data.
 type Chunk<'a> = ([u8; 4], &'a [u8]);
 
 /// Walks the chunks of a PNG file, checking each CRC and that the file ends
-/// with IEND. Returns the chunks as (type, data).
-fn png_chunks(file: &[u8]) -> Result<Vec<Chunk<'_>>, SnapshotError> {
-    if file.len() < 8 || file[..8] != PNG_SIGNATURE {
-        return Err(SnapshotError::NotSnapshot);
-    }
+/// with IEND. Returns the chunks as (type, data), or `None` if `file` is not
+/// a whole, valid PNG.
+fn png_chunks(file: &[u8]) -> Option<Vec<Chunk<'_>>> {
+    let mut rest = file.strip_prefix(&PNG_SIGNATURE)?;
     let mut chunks = Vec::new();
-    let mut rest = &file[8..];
     loop {
         if rest.len() < 12 {
-            return Err(SnapshotError::Damaged);
+            return None;
         }
         let len = u32::from_be_bytes(rest[..4].try_into().unwrap()) as usize;
         if len > MAX_CHUNK || rest.len() - 12 < len {
-            return Err(SnapshotError::Damaged);
+            return None;
         }
         let kind: [u8; 4] = rest[4..8].try_into().unwrap();
         let data = &rest[8..8 + len];
         let crc = u32::from_be_bytes(rest[8 + len..12 + len].try_into().unwrap());
         if crc != crc32(&[&kind, data]) {
-            return Err(SnapshotError::Damaged);
+            return None;
         }
         chunks.push((kind, data));
         rest = &rest[12 + len..];
         if kind == IEND {
-            return if rest.is_empty() { Ok(chunks) } else { Err(SnapshotError::Damaged) };
+            return rest.is_empty().then_some(chunks);
         }
     }
 }
 
-/// Builds a snapshot file: the thumbnail PNG with sections added before its
-/// IEND chunk.
+/// True if `file` is a whole PNG file whose chunks all check out.
+pub fn is_png(file: &[u8]) -> bool {
+    png_chunks(file).is_some()
+}
+
+/// What a file without the signature is: a version 4 snapshot, which is a
+/// PNG with the sections in `juKu` chunks, is old; anything else is not a
+/// snapshot.
+fn unsigned(file: &[u8]) -> SnapshotError {
+    match png_chunks(file) {
+        Some(chunks) if chunks.iter().any(|(kind, _)| *kind == OLD_CHUNK_TYPE) => SnapshotError::Old,
+        _ => SnapshotError::NotSnapshot,
+    }
+}
+
+/// Walks the sections of a snapshot file, checking each CRC and that the
+/// file ends with the `END ` section. Returns the sections before it as
+/// (tag, data).
+fn file_sections(file: &[u8]) -> Result<Vec<Chunk<'_>>, SnapshotError> {
+    let Some(mut rest) = file.strip_prefix(&SIGNATURE) else {
+        return Err(unsigned(file));
+    };
+    let mut list = Vec::new();
+    loop {
+        if rest.len() < 12 {
+            return Err(SnapshotError::Damaged);
+        }
+        let tag: [u8; 4] = rest[..4].try_into().unwrap();
+        let len = u32::from_le_bytes(rest[4..8].try_into().unwrap()) as usize;
+        if rest.len() - 12 < len {
+            return Err(SnapshotError::Damaged);
+        }
+        let data = &rest[8..8 + len];
+        let crc = u32::from_le_bytes(rest[8 + len..12 + len].try_into().unwrap());
+        if crc != crc32(&[&tag, data]) {
+            return Err(SnapshotError::Damaged);
+        }
+        rest = &rest[12 + len..];
+        if tag == END {
+            return if data.is_empty() && rest.is_empty() { Ok(list) } else { Err(SnapshotError::Damaged) };
+        }
+        list.push((tag, data));
+    }
+}
+
+/// Builds a snapshot file: the signature, the sections in the order given,
+/// and the `END ` section.
 pub struct SnapshotWriter {
     out: Vec<u8>,
 }
 
+impl Default for SnapshotWriter {
+    fn default() -> SnapshotWriter {
+        SnapshotWriter::new()
+    }
+}
+
 impl SnapshotWriter {
-    /// Starts from `png`, which must be a whole, valid PNG file. Returns
-    /// `None` otherwise.
-    pub fn new(png: &[u8]) -> Option<SnapshotWriter> {
-        let chunks = png_chunks(png).ok()?;
-        if chunks.iter().any(|(kind, _)| *kind == CHUNK_TYPE) {
-            return None;
-        }
-        // IEND is the last 12 bytes.
-        Some(SnapshotWriter { out: png[..png.len() - 12].to_vec() })
+    pub fn new() -> SnapshotWriter {
+        SnapshotWriter { out: SIGNATURE.to_vec() }
     }
 
+    /// Adds a section: tag, little-endian length, data, and the CRC-32 of
+    /// the tag and data.
     pub fn section(&mut self, tag: [u8; 4], data: &[u8]) {
-        put_chunk(&mut self.out, CHUNK_TYPE, &[&tag, data]);
+        self.out.extend_from_slice(&tag);
+        self.out.extend_from_slice(&(data.len() as u32).to_le_bytes());
+        self.out.extend_from_slice(data);
+        self.out.extend_from_slice(&crc32(&[&tag, data]).to_le_bytes());
     }
 
     pub fn finish(mut self) -> Vec<u8> {
-        put_chunk(&mut self.out, IEND, &[]);
+        self.section(END, &[]);
         self.out
     }
 }
@@ -150,22 +203,14 @@ impl<'a> Sections<'a> {
     /// Parses `file`. The first section must be `SNAP` with a version this
     /// core can read. Duplicate tags make the file damaged.
     pub fn parse(file: &'a [u8]) -> Result<Sections<'a>, SnapshotError> {
-        let mut list: Vec<Chunk> = Vec::new();
-        for (kind, data) in png_chunks(file)? {
-            if kind != CHUNK_TYPE {
-                continue;
-            }
-            if data.len() < 4 {
+        let list = file_sections(file)?;
+        for (i, (tag, _)) in list.iter().enumerate() {
+            if list[..i].iter().any(|(t, _)| t == tag) {
                 return Err(SnapshotError::Damaged);
             }
-            let tag: [u8; 4] = data[..4].try_into().unwrap();
-            if list.iter().any(|(t, _)| *t == tag) {
-                return Err(SnapshotError::Damaged);
-            }
-            list.push((tag, &data[4..]));
         }
         let Some((tag, head)) = list.first() else {
-            return Err(SnapshotError::NotSnapshot);
+            return Err(SnapshotError::Damaged);
         };
         if tag != b"SNAP" || head.len() < 4 {
             return Err(SnapshotError::Damaged);
@@ -200,6 +245,12 @@ pub fn section<'a>(file: &'a [u8], tag: &[u8; 4]) -> Result<Option<&'a [u8]>, Sn
     Ok(Sections::parse(file)?.get(tag))
 }
 
+/// The thumbnail of a snapshot file, a PNG, whatever the file's version, or
+/// `None` if the file is not a whole snapshot or has no thumbnail.
+pub fn thumbnail(file: &[u8]) -> Option<&[u8]> {
+    file_sections(file).ok()?.into_iter().find(|(tag, _)| *tag == THUMBNAIL).map(|(_, data)| data)
+}
+
 /// True if `tag` may be used for a host section.
 pub fn is_host_tag(tag: &[u8; 4]) -> bool {
     tag[0].is_ascii_lowercase() && tag.iter().all(|b| b.is_ascii_graphic() || *b == b' ')
@@ -232,8 +283,8 @@ pub fn frame_png(frame: &Frame) -> Vec<u8> {
     ihdr.extend_from_slice(&(lines as u32).to_be_bytes());
     ihdr.extend_from_slice(&[1, 0, 0, 0, 0]); // 1-bit greyscale
     let mut out = PNG_SIGNATURE.to_vec();
-    put_chunk(&mut out, *b"IHDR", &[&ihdr]);
-    put_chunk(&mut out, *b"IDAT", &[&z]);
+    put_chunk(&mut out, *b"IHDR", &ihdr);
+    put_chunk(&mut out, *b"IDAT", &z);
     put_chunk(&mut out, IEND, &[]);
     out
 }
@@ -448,48 +499,68 @@ mod tests {
     #[test]
     fn sections_round_trip() {
         let png = frame_png(&Frame::new_boxed());
-        let mut w = SnapshotWriter::new(&png).unwrap();
+        let mut w = SnapshotWriter::new();
         w.section(*b"SNAP", &VERSION.to_le_bytes());
+        w.section(THUMBNAIL, &png);
         w.section(*b"meta", b"hello");
         let file = w.finish();
-        assert_eq!(file[..png.len() - 12], png[..png.len() - 12]);
+        assert_eq!(file[..SIGNATURE.len()], SIGNATURE);
+        assert_eq!(file[SIGNATURE.len()..][..12], [b'S', b'N', b'A', b'P', 4, 0, 0, 0, 5, 0, 0, 0]);
+        assert_eq!(file[file.len() - 12..file.len() - 4], [b'E', b'N', b'D', b' ', 0, 0, 0, 0]);
         let s = Sections::parse(&file).unwrap();
         assert_eq!(s.get(b"meta"), Some(&b"hello"[..]));
         assert_eq!(s.get(b"none"), None);
         assert_eq!(section(&file, b"meta"), Ok(Some(&b"hello"[..])));
+        assert_eq!(thumbnail(&file), Some(&png[..]));
+        assert!(is_png(&png) && !is_png(&file) && !is_png(b"not a png"));
 
-        // The thumbnail alone is not a snapshot; a snapshot is not a thumbnail.
+        // The thumbnail alone is not a snapshot.
         assert_eq!(Sections::parse(&png).err(), Some(SnapshotError::NotSnapshot));
-        assert!(SnapshotWriter::new(&file).is_none());
-        assert!(SnapshotWriter::new(b"not a png").is_none());
+        assert_eq!(thumbnail(&png), None);
+    }
+
+    /// Version 4 was a PNG with the sections in `juKu` chunks before IEND.
+    #[test]
+    fn png_snapshots_are_old() {
+        let png = frame_png(&Frame::new_boxed());
+        let mut old = png[..png.len() - 12].to_vec();
+        put_chunk(&mut old, OLD_CHUNK_TYPE, &[b"SNAP".as_slice(), &4u32.to_le_bytes()].concat());
+        put_chunk(&mut old, IEND, &[]);
+        assert!(is_png(&old));
+        assert_eq!(Sections::parse(&old).err(), Some(SnapshotError::Old));
+        assert_eq!(Sections::parse(&png).err(), Some(SnapshotError::NotSnapshot));
     }
 
     #[test]
     fn damage_is_caught() {
-        let png = frame_png(&Frame::new_boxed());
-        let mut w = SnapshotWriter::new(&png).unwrap();
+        let mut w = SnapshotWriter::new();
         w.section(*b"SNAP", &VERSION.to_le_bytes());
         w.section(*b"DATA", &[7; 100]);
         let file = w.finish();
         for len in 0..file.len() {
-            assert!(Sections::parse(&file[..len]).is_err(), "truncated to {len}");
+            let error = if len < SIGNATURE.len() { SnapshotError::NotSnapshot } else { SnapshotError::Damaged };
+            assert_eq!(Sections::parse(&file[..len]).err(), Some(error), "truncated to {len}");
         }
-        for at in [8, png.len(), file.len() - 50, file.len() - 1] {
+        for at in 0..file.len() {
             let mut bad = file.clone();
             bad[at] ^= 0x10;
             assert!(Sections::parse(&bad).is_err(), "bit flipped at {at}");
         }
-        let mut w = SnapshotWriter::new(&png).unwrap();
+        assert!(Sections::parse(&[&file[..], &[0]].concat()).is_err(), "a byte after END");
+        let mut w = SnapshotWriter::new();
         w.section(*b"SNAP", &(VERSION + 1).to_le_bytes());
         assert_eq!(Sections::parse(&w.finish()).err(), Some(SnapshotError::Version));
-        let mut w = SnapshotWriter::new(&png).unwrap();
+        let mut w = SnapshotWriter::new();
         w.section(*b"SNAP", &(VERSION - 1).to_le_bytes());
         assert_eq!(Sections::parse(&w.finish()).err(), Some(SnapshotError::Old));
-        let mut w = SnapshotWriter::new(&png).unwrap();
+        let mut w = SnapshotWriter::new();
         w.section(*b"SNAP", &VERSION.to_le_bytes());
         w.section(*b"DATA", &[]);
         w.section(*b"DATA", &[]);
         assert_eq!(Sections::parse(&w.finish()).err(), Some(SnapshotError::Damaged));
+        let mut w = SnapshotWriter::new();
+        w.section(*b"DATA", &[]);
+        assert_eq!(Sections::parse(&w.finish()).err(), Some(SnapshotError::Damaged), "no SNAP first");
     }
 
     #[test]

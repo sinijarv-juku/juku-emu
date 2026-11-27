@@ -36,7 +36,7 @@ type Edit = fn(&[u8]) -> Option<Vec<u8>>;
 /// Copies a snapshot file, letting `edit` replace or drop sections.
 fn rebuild(file: &[u8], edit: impl Fn(&[u8; 4], &[u8]) -> Option<Vec<u8>>) -> Vec<u8> {
     let sections = Sections::parse(file).unwrap();
-    let mut w = SnapshotWriter::new(&snapshot::frame_png(&juku::Frame::new_boxed())).unwrap();
+    let mut w = SnapshotWriter::new();
     for (tag, data) in sections.iter() {
         if let Some(data) = edit(&tag, data) {
             w.section(tag, &data);
@@ -74,33 +74,36 @@ fn restored_machine_runs_on_identically() {
     assert!(text.iter().any(|l| l.ends_with("D0000/001F")), "{text:?}");
 }
 
-/// Versions 1 and 2, which no release wrote, are refused as older.
+/// Versions 1 to 4 are refused as older.
 #[test]
 fn older_versions_are_refused() {
     let rom = load_rom();
     let file = state(&at_prompt(&rom));
     let mut m = Machine::new(&rom).unwrap();
-    for version in [1u32, 2] {
+    for version in 1u32..snapshot::VERSION {
         let old = rebuild(&file, |t, d| Some(if t == b"SNAP" { version.to_le_bytes().to_vec() } else { d.to_vec() }));
         assert_eq!(m.load_snapshot(&old), Err(SnapshotError::Old), "version {version}");
     }
 }
 
 #[test]
-fn snapshot_is_a_png_with_the_screen() {
+fn snapshot_holds_the_screen_as_a_png() {
     let rom = load_rom();
     let m = at_prompt(&rom);
     let file = state(&m);
-    assert_eq!(file[..8], [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]);
-    // The picture comes first: a viewer reads it before the state.
-    assert_eq!(&file[12..16], b"IHDR");
-    assert_eq!(file[16..24], [0, 0, 1, 64, 0, 0, 0, 241], "320 × 241");
+    assert_eq!(file[..9], [0x8A, b'J', b'U', b'K', b'U', 0x0D, 0x0A, 0x1A, 0x0A]);
+    let tags: Vec<[u8; 4]> = Sections::parse(&file).unwrap().iter().map(|(tag, _)| tag).collect();
+    // The picture follows the version, so a thumbnailer reads it first.
+    assert_eq!(tags[..3], [*b"SNAP", *b"THMB", *b"SYS "]);
+    let png = snapshot::thumbnail(&file).unwrap();
+    assert_eq!(png, snapshot::frame_png(m.frame()));
+    assert_eq!(png[16..24], [0, 0, 1, 64, 0, 0, 0, 241], "320 × 241");
     assert!(file.len() < 140_000, "{} bytes with no disks", file.len());
 
     // A host thumbnail replaces the core's.
     let thumb = snapshot::frame_png(&juku::Frame::new_boxed());
     let with_thumb = m.save_snapshot(Some(&thumb), &[]).unwrap();
-    assert_eq!(with_thumb[..thumb.len() - 12], thumb[..thumb.len() - 12]);
+    assert_eq!(snapshot::thumbnail(&with_thumb), Some(&thumb[..]));
     assert!(m.save_snapshot(Some(b"not a png"), &[]).is_none());
 }
 
@@ -173,7 +176,7 @@ fn bad_files_change_nothing() {
         ("thumbnail only".into(), snapshot::frame_png(m.frame()), SnapshotError::NotSnapshot),
     ];
     for len in (0..good.len()).step_by(997).chain([good.len() - 13, good.len() - 1]) {
-        let error = if len < 8 { SnapshotError::NotSnapshot } else { SnapshotError::Damaged };
+        let error = if len < snapshot::SIGNATURE.len() { SnapshotError::NotSnapshot } else { SnapshotError::Damaged };
         bad.push((format!("truncated to {len}"), good[..len].to_vec(), error));
     }
     for at in [100, 5_000, good.len() / 2, good.len() - 20] {

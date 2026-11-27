@@ -9,7 +9,7 @@
 #import "Settings.m"
 #import "Strings.m"
 
-// Snapshot files (spec §6.8): the core's PNG holding the machine (§4.6),
+// Snapshot files (spec §6.8): the core's file holding the machine (§4.6),
 // with a `meta` section from the app, and a `mac ` section with the files
 // the snapshot came from, sealed so that only this Mac can read it. ROMs in a snapshot are matched to the
 // bundled ROMs and the user's files by their bytes; a ROM this Mac does not

@@ -127,9 +127,9 @@ extern void             juku_disk_set_write_protect(JukuMachine *m, uint8_t driv
 extern bool             juku_disk_write_protected(const JukuMachine *m, uint8_t drive);
 extern uint8_t          juku_drive_activity(const JukuMachine *m);   // bit per drive: command running
 
-// Snapshots (spec §4.6): a PNG file holding the machine. Host sections have
-// 4-byte tags starting with a lowercase letter. Errors: −1 not a snapshot,
-// −2 damaged, −3 made by a newer version, −4 by an older one.
+// Snapshots (spec §4.6): a file of sections holding the machine. Host
+// sections have 4-byte tags starting with a lowercase letter. Errors: −1 not
+// a snapshot, −2 damaged, −3 made by a newer version, −4 by an older one.
 typedef struct {
     uint8_t        tag[4];
     const uint8_t *data;

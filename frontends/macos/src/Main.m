@@ -497,8 +497,8 @@ static void fatalError(NSString *message)
         {{'m', 'a', 'c', ' '}, [sealed bytes], [sealed length]},
     };
     size_t len = 0;
-    // The picture Finder and image viewers show; without one the core draws
-    // the frame as it is.
+    // The picture Finder shows as the file's thumbnail; without one the core
+    // draws the frame as it is.
     NSData *thumbnail = [[self emuView] thumbnailPNG];
     uint8_t *file = juku_snapshot_save(_machine, [thumbnail bytes], [thumbnail length], sections, sealed ? 2 : 1, &len);
 
