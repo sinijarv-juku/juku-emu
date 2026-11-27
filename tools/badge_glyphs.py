@@ -3,14 +3,19 @@
 
     badge_glyphs.py
 
-The badge on the МС6105's front reads ЭЛЕКТРОНИКА in a narrow sans serif
-(MD §7.4). The shaders draw it with Whole Monitor on, as strokes: line
-segments whose distance gives the letters at any size, with no texture and
-no font. This lays the word out from the letters' paths below and writes
-the segments, in cap heights, x from the start of the word and y up from
-the baseline, between the `badge strokes` markers of
-frontends/macos/src/Shaders.metal and frontends/windows/src/Shaders.hlsl.
-Run it again after changing a letter.
+The badge on the МС6105's front reads электроника in a bold geometric sans
+serif, all its letters as tall as capitals, and its emblem holds a spire
+between a small Э and С (MD §7.4). The shaders draw both with Whole Monitor
+on, as strokes: line segments whose distance gives the letters at any size,
+with no texture and no font. The shapes were drawn after close-up photos of
+the badge.
+
+This lays out the word, in cap heights, x from the start of the word and y up
+from the baseline, and the emblem's two letters, in the emblem frame's widths,
+x from its left edge and y down from its top, and writes them between the
+`badge strokes` markers of frontends/macos/src/Shaders.metal and
+frontends/windows/src/Shaders.hlsl. Each path is the centre line of a stroke
+STROKE wide, inside its letter's box. Run it again after changing a letter.
 """
 import math
 import pathlib
@@ -21,8 +26,13 @@ SHADERS = {
     ROOT / 'frontends/macos/src/Shaders.metal': ('constant int', 'constant float4', '{', '}'),
     ROOT / 'frontends/windows/src/Shaders.hlsl': ('static const int', 'static const float4', 'float4(', ')'),
 }
-WORD = 'ЭЛЕКТРОНИКА'
-SPACING = 0.17
+WORD = 'электроника'
+SPACING = 0.14
+
+# Half the stroke, and the centre lines of the top and bottom strokes.
+S = 0.085
+TOP = 1.0 - S
+BOTTOM = S
 
 
 def arc(cx, cy, rx, ry, start, end, steps):
@@ -38,20 +48,27 @@ def arc(cx, cy, rx, ry, start, end, steps):
 
 # Each letter: its width and its paths, in cap heights, y up.
 LETTERS = {
-    'Э': (0.50, [arc(0.25, 0.5, 0.25, 0.5, 145, -145, 10), [(0.16, 0.5), (0.5, 0.5)]]),
-    'Л': (0.50, [[(0.0, 0.0), (0.07, 0.12), (0.11, 1.0), (0.5, 1.0), (0.5, 0.0)]]),
-    'Е': (0.44, [[(0.44, 1.0), (0.0, 1.0), (0.0, 0.0), (0.44, 0.0)], [(0.0, 0.5), (0.38, 0.5)]]),
-    'К': (0.50, [[(0.0, 0.0), (0.0, 1.0)], [(0.47, 1.0), (0.0, 0.42)], [(0.16, 0.6), (0.5, 0.0)]]),
-    'Т': (0.50, [[(0.0, 1.0), (0.5, 1.0)], [(0.25, 1.0), (0.25, 0.0)]]),
-    'Р': (0.48, [[(0.0, 0.0), (0.0, 1.0), (0.26, 1.0)] + arc(0.26, 0.765, 0.22, 0.235, 90, -90, 6) + [(0.0, 0.53)]]),
-    'О': (0.52, [arc(0.26, 0.5, 0.26, 0.5, 0, 360, 16)]),
-    'Н': (0.50, [[(0.0, 0.0), (0.0, 1.0)], [(0.5, 0.0), (0.5, 1.0)], [(0.0, 0.5), (0.5, 0.5)]]),
-    'И': (0.50, [[(0.0, 1.0), (0.0, 0.0), (0.5, 1.0), (0.5, 0.0)]]),
-    'А': (0.54, [[(0.0, 0.0), (0.27, 1.0), (0.54, 0.0)], [(0.09, 0.33), (0.45, 0.33)]]),
+    'э': (0.63, [arc(0.315, 0.5, 0.315 - S, 0.5 - S, 140, -140, 12), [(0.17, 0.5), (0.63 - S, 0.5)]]),
+    'л': (0.77, [[(0.04, BOTTOM), (0.13, 0.11), (0.19, 0.24), (0.215, 0.45), (0.22, TOP), (0.77 - S, TOP), (0.77 - S, BOTTOM)]]),
+    'е': (0.71, [arc(0.355, 0.5, 0.355 - S, 0.5 - S, 0, 318, 14), [(S, 0.5), (0.71 - S, 0.5)]]),
+    'к': (0.66, [[(S, BOTTOM), (S, TOP)], [(0.6, TOP), (S, 0.46)], [(0.25, 0.6), (0.62, BOTTOM)]]),
+    'т': (0.77, [[(0.03, TOP), (0.74, TOP)], [(0.385, TOP), (0.385, BOTTOM)]]),
+    'р': (0.66, [[(S, BOTTOM), (S, TOP), (0.35, TOP)] + arc(0.35, 0.69, 0.225, 0.225, 90, -90, 8) + [(S, 0.465)]]),
+    'о': (0.77, [arc(0.385, 0.5, 0.385 - S, 0.5 - S, 0, 360, 18)]),
+    'н': (0.66, [[(S, BOTTOM), (S, TOP)], [(0.66 - S, BOTTOM), (0.66 - S, TOP)], [(S, 0.5), (0.66 - S, 0.5)]]),
+    'и': (0.66, [[(S, TOP), (S, BOTTOM), (0.66 - S, TOP), (0.66 - S, BOTTOM)]]),
+    'а': (0.71, [[(0.04, BOTTOM), (0.355, TOP), (0.67, BOTTOM)], [(0.17, 0.33), (0.54, 0.33)]]),
 }
 
+# The emblem's Э and С, beside the spire's foot, in the frame's widths, y
+# down: their centres, half-sizes and arcs.
+MARK = [
+    arc(0.21, 1.42, 0.11, 0.17, 140, -140, 10), [(0.15, 1.42), (0.31, 1.42)],
+    arc(0.71, 1.42, 0.11, 0.17, 40, 320, 10),
+]
 
-def segments():
+
+def word_segments():
     out = []
     x = 0.0
 
@@ -64,18 +81,29 @@ def segments():
 
         x += width + SPACING
 
-    return out
+    return out, x - SPACING
+
+
+def path_segments(paths):
+    return [(x0, y0, x1, y1) for path in paths for (x0, y0), (x1, y1) in zip(path, path[1:])]
+
+
+def array(int_type, vec_type, open_, close, name, count_name, segments):
+    rows = '\n'.join(f'    {open_}{", ".join(f"{c:.3f}" for c in s)}{close},' for s in segments)
+    return (f'{int_type} {count_name} = {len(segments)};\n'
+            f'{vec_type} {name}[{len(segments)}] = {{\n{rows}\n}};\n')
 
 
 def main():
-    strokes = segments()
+    word, width = word_segments()
+    mark = path_segments(MARK)
 
     for path, (int_type, vec_type, open_, close) in SHADERS.items():
-        rows = '\n'.join(f'    {open_}{", ".join(f"{c:.3f}" for c in s)}{close},' for s in strokes)
-        block = (f'// badge strokes: made by tools/badge_glyphs.py, not edited by hand\n'
-                 f'{int_type} kBadgeSegments = {len(strokes)};\n'
-                 f'{vec_type} kBadgeText[{len(strokes)}] = {{\n{rows}\n}};\n'
-                 f'// end of badge strokes')
+        block = ('// badge strokes: made by tools/badge_glyphs.py, not edited by hand\n'
+                 f'// The word, {width:.2f} cap heights wide.\n'
+                 + array(int_type, vec_type, open_, close, 'kBadgeText', 'kBadgeSegments', word)
+                 + array(int_type, vec_type, open_, close, 'kBadgeMark', 'kBadgeMarkSegments', mark)
+                 + '// end of badge strokes')
         text = path.read_text(encoding='utf-8')
         new, count = re.subn(r'// badge strokes:.*?// end of badge strokes', lambda _: block, text, flags=re.S)
 
@@ -83,7 +111,7 @@ def main():
             raise SystemExit(f'{path}: no badge strokes markers')
 
         path.write_text(new, encoding='utf-8', newline='\n')
-        print(f'{path.relative_to(ROOT)}: {len(strokes)} segments')
+        print(f'{path.relative_to(ROOT)}: {len(word)} + {len(mark)} segments, the word {width:.2f} cap heights wide')
 
 
 if __name__ == '__main__':
