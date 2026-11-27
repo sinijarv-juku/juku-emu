@@ -548,6 +548,13 @@ impl Machine {
         self.sys.speaker.set_drive_volume(volume);
     }
 
+    /// How far apart the two drives are heard, from 0 (both in the middle)
+    /// to 1 (A: in the left speaker alone, B: in the right); 0.25 by default
+    /// (`drive_sound::SPREAD`, spec §4.5).
+    pub fn set_drive_sounds_spread(&mut self, spread: f32) {
+        self.sys.speaker.set_drive_spread(spread);
+    }
+
     /// With `on`, the drive motors fade out once the controller has had no
     /// command for 10 s, though the motor line stays on.
     pub fn set_drive_idle_mute(&mut self, on: bool) {

@@ -6,9 +6,10 @@
 #import "Settings.m"
 #import "Strings.m"
 
-// The Settings window (spec §6.7): General (mouse, sound, language), Display (the CRT)
-// and Machine (the ROMs, the T3.2 clock and the debugger), as panes chosen from a toolbar, each a simple form
-// built in code.
+// The Settings window (spec §6.7): General (mouse, language), Display (the
+// CRT), Sound (the key click and the drive sounds) and Machine (the ROMs, the
+// T3.2 clock and the debugger), as panes chosen from a toolbar, each a simple
+// form built in code.
 // Changes apply immediately; the menu and this window stay in sync through
 // NSUserDefaults notifications.
 @interface SettingsWindow: NSObject<NSWindowDelegate, NSToolbarDelegate>
@@ -30,6 +31,8 @@
     NSButton *_driveSounds;
     NSButton *_driveIdleMute;
     NSTextField *_driveVolumeLabel;
+    NSTextField *_driveSpreadLabel;
+    NSTextField *_driveSpreadNote;
     NSButton *_t32FastClock;
     NSButton *_debugger;
     NSTextField *_debuggerNote;
@@ -44,10 +47,10 @@
 
 // The panes in toolbar order: the toolbar item's identifier, which is also
 // its label's key, and its SF Symbol.
-enum { kPaneGeneral, kPaneDisplay, kPaneMachine, kPaneCount };
+enum { kPaneGeneral, kPaneDisplay, kPaneSound, kPaneMachine, kPaneCount };
 
-static NSString *const kPaneNames[kPaneCount] = {@"General", @"Display", @"Machine"};
-static NSString *const kPaneSymbols[kPaneCount] = {@"gearshape", @"display", @"cpu"};
+static NSString *const kPaneNames[kPaneCount] = {@"General", @"Display", @"Sound", @"Machine"};
+static NSString *const kPaneSymbols[kPaneCount] = {@"gearshape", @"display", @"speaker.wave.2", @"cpu"};
 
 // Language codes in the Language pop-up; NSNull is "System Default". The
 // languages are named in their own language, as macOS does.
@@ -68,6 +71,18 @@ static NSTextField *formNote(NSString *key)
     NSTextField *note = [NSTextField labelWithString:localized(key)];
     [note setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
     [note setTextColor:[NSColor secondaryLabelColor]];
+    return note;
+}
+
+// A note that wraps at `width`: one longer than its column's controls are
+// wide, which would otherwise widen the column and the window to its length.
+static NSTextField *formWrappingNote(NSString *key, CGFloat width)
+{
+    NSTextField *note = [NSTextField wrappingLabelWithString:localized(key)];
+    [note setSelectable:NO];
+    [note setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
+    [note setTextColor:[NSColor secondaryLabelColor]];
+    [note setPreferredMaxLayoutWidth:width];
     return note;
 }
 
@@ -121,11 +136,6 @@ static NSView *paneView(NSGridView *grid)
 
 - (NSView *)generalPane
 {
-    _keyClick = [NSButton checkboxWithTitle:localized(@"Key Click") target:self action:@selector(keyClickChanged:)];
-    _driveSounds = [NSButton checkboxWithTitle:localized(@"Drive Sounds") target:self action:@selector(driveSoundsChanged:)];
-    _driveIdleMute = [NSButton checkboxWithTitle:localized(@"Fade Out the Motor When Idle for 10 s") target:self action:@selector(driveIdleMuteChanged:)];
-    _driveVolumeLabel = formLabel(@"Drive Volume:");
-
     _language = [[NSPopUpButton alloc] initWithFrame:NSZeroRect pullsDown:NO];
     [_language addItemsWithTitles:@[localized(@"System Default"), @"English", @"Eesti"]];
     [_language setTarget:self];
@@ -133,16 +143,38 @@ static NSView *paneView(NSGridView *grid)
 
     NSGridView *grid = formGrid(@[
         @[formLabel(@"Mouse Speed:"), _sliders[kSettingMouseSensitivity]],
-        @[formLabel(@"Sound:"), _keyClick],
-        @[[NSGridCell emptyContentView], formNote(@"This ROM's key click cannot be changed.")],
-        @[[NSGridCell emptyContentView], _driveSounds],
-        @[_driveVolumeLabel, _sliders[kSettingDriveSoundsVolume]],
-        @[[NSGridCell emptyContentView], _driveIdleMute],
         @[formLabel(@"Language:"), _language],
         @[[NSGridCell emptyContentView], formNote(@"Takes effect the next time Juku opens.")],
     ]);
-    padRows(grid, @[@1, @6], @[@2, @7]);
-    _keyClickNoteRow = [grid rowAtIndex:2];
+    padRows(grid, @[@1], @[@2]);
+    return paneView(grid);
+}
+
+- (NSView *)soundPane
+{
+    _keyClick = [NSButton checkboxWithTitle:localized(@"Key Click") target:self action:@selector(keyClickChanged:)];
+    _driveSounds = [NSButton checkboxWithTitle:localized(@"Drive Sounds") target:self action:@selector(driveSoundsChanged:)];
+    _driveIdleMute = [NSButton checkboxWithTitle:localized(@"Fade Out the Motor When Idle for 10 s") target:self action:@selector(driveIdleMuteChanged:)];
+    _driveVolumeLabel = formLabel(@"Drive Volume:");
+    _driveSpreadLabel = formLabel(@"Drive Separation:");
+    // As wide as the widest control in the column, Fade Out's checkbox, but
+    // no narrower than 290, at which the English note takes three lines.
+    CGFloat noteWidth = fmax([_driveIdleMute fittingSize].width, 290.0);
+    _driveSpreadNote = formWrappingNote(@"The two drives sat side by side in the disk unit under the monitor, A: on the left. The default places them as heard from in front of the monitor.", noteWidth);
+
+    NSGridView *grid = formGrid(@[
+        @[formLabel(@"Keyboard:"), _keyClick],
+        @[[NSGridCell emptyContentView], formNote(@"This ROM's key click cannot be changed.")],
+        @[formLabel(@"Disk Drives:"), _driveSounds],
+        @[_driveVolumeLabel, _sliders[kSettingDriveSoundsVolume]],
+        @[_driveSpreadLabel, _sliders[kSettingDriveSoundsSpread]],
+        @[[NSGridCell emptyContentView], _driveSpreadNote],
+        @[[NSGridCell emptyContentView], _driveIdleMute],
+    ]);
+    padRows(grid, @[@2], @[@1, @5]);
+    // The note goes with the slider above it, not with the checkbox below.
+    [[grid rowAtIndex:6] setTopPadding:4.0];
+    _keyClickNoteRow = [grid rowAtIndex:1];
     return paneView(grid);
 }
 
@@ -206,9 +238,10 @@ static NSView *paneView(NSGridView *grid)
         kSettingBrightness: [self sliderFor:kSettingBrightness min:0.5 max:1.5],
         kSettingMouseSensitivity: [self sliderFor:kSettingMouseSensitivity min:0.1 max:2.0],
         kSettingDriveSoundsVolume: [self sliderFor:kSettingDriveSoundsVolume min:0.0 max:2.0],
+        kSettingDriveSoundsSpread: [self sliderFor:kSettingDriveSoundsSpread min:0.0 max:1.0],
     };
 
-    _panes = @[[self generalPane], [self displayPane], [self machinePane]];
+    _panes = @[[self generalPane], [self displayPane], [self soundPane], [self machinePane]];
 
     _window = [[NSWindow alloc] initWithContentRect:NSZeroRect
                                           styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
@@ -311,8 +344,8 @@ static NSView *paneView(NSGridView *grid)
     // layout.
     [_keyClickNoteRow setHidden:available];
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (self->_pane == kPaneGeneral && [self->_window contentView] == self->_panes[kPaneGeneral]) {
-            [self fitWindowTo:self->_panes[kPaneGeneral] animate:NO];
+        if (self->_pane == kPaneSound && [self->_window contentView] == self->_panes[kPaneSound]) {
+            [self fitWindowTo:self->_panes[kPaneSound] animate:NO];
         }
     });
 }
@@ -342,10 +375,13 @@ static NSView *paneView(NSGridView *grid)
     [_debuggerNote setStringValue:[NSString stringWithFormat:localized(@"VS Code and other DAP clients connect on port %ld, from this Mac only."),
                                                              (long)settingInteger(kSettingDebuggerPort)]];
     // The drive sounds' settings apply only while they are on, and the
-    // slider's label is grayed with it.
+    // sliders' labels are grayed with them.
     BOOL driveSounds = settingBool(kSettingDriveSounds);
     [_sliders[kSettingDriveSoundsVolume] setEnabled:driveSounds];
+    [_sliders[kSettingDriveSoundsSpread] setEnabled:driveSounds];
     [_driveVolumeLabel setTextColor:driveSounds ? [NSColor labelColor] : [NSColor disabledControlTextColor]];
+    [_driveSpreadLabel setTextColor:driveSounds ? [NSColor labelColor] : [NSColor disabledControlTextColor]];
+    [_driveSpreadNote setTextColor:driveSounds ? [NSColor secondaryLabelColor] : [NSColor disabledControlTextColor]];
     [_driveIdleMute setEnabled:driveSounds];
 
     for (NSString *key in _sliders) {

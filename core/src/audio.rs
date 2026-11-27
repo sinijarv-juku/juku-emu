@@ -162,6 +162,10 @@ impl Speaker {
         self.drives.set_volume(volume);
     }
 
+    pub fn set_drive_spread(&mut self, spread: f32) {
+        self.drives.set_spread(spread);
+    }
+
     pub fn set_drive_idle_mute(&mut self, on: bool) {
         self.drives.set_idle_mute(on);
     }

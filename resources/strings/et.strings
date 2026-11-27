@@ -50,10 +50,14 @@
 "Recent Images" = "Hiljutised kettad";
 "Clear Menu" = "Tühjenda menüü";
 "Mouse Speed:" = "Hiire kiirus:";
-"Sound:" = "Heli:";
+"Sound" = "Heli";
+"Keyboard:" = "Klaviatuur:";
+"Disk Drives:" = "Kettaseadmed:";
 "Key Click" = "Klahviklõps";
 "Drive Sounds" = "Kettaseadme helid";
 "Drive Volume:" = "Ketaste helitugevus:";
+"Drive Separation:" = "Ketaste eraldus:";
+"The two drives sat side by side in the disk unit under the monitor, A: on the left. The default places them as heard from in front of the monitor." = "Kaks kettaseadet asusid kõrvuti monitori all olevas kettaplokis, A: vasakul. Vaikimisi kõlavad need nii, nagu monitori ees istuja neid kuuleks.";
 "Fade Out the Motor When Idle for 10 s" = "Vaigista mootori heli peale 10 s jõudeolekut";
 "Keyboard" = "Klaviatuur";
 "Juku E5101 keyboard" = "Juku E5101 klaviatuur";

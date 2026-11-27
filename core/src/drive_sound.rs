@@ -59,12 +59,14 @@ const LEVER_PAUSE: f32 = 0.25;
 /// A disk put in where there is one goes in this long after the old one
 /// starts out.
 const SWAP_SECS: f32 = 0.6;
-/// Where each drive is heard, from −1 (left) to 1 (right). The drives sat
-/// side by side in the disk unit under the monitor, A: taken to be the left
-/// one, their slots' centres about 8 cm either side of the middle: some 8°
-/// off centre for a user 60 cm away, a quarter of the way to stereo speakers
-/// at ±30°.
-const PAN: [f32; 2] = [-0.25, 0.25];
+/// How far apart the drives are heard by default: A: at −`SPREAD` (left)
+/// and B: at `SPREAD` (right), on a scale where ±1 is one speaker alone.
+/// The drives sat side by side in the disk unit under the monitor, A: the
+/// left one, their slots' centres about 8 cm either side of the
+/// middle: some 8° off centre for a user 60 cm away, a quarter of the way to
+/// stereo speakers at ±30°. The host may set another (`set_spread`), for
+/// speakers placed otherwise.
+pub const SPREAD: f32 = 0.25;
 /// Turning the sounds on or off fades them in or out over this time, and a
 /// new volume is reached in about as long.
 const FADE_SECS: f32 = 0.02;
@@ -223,14 +225,28 @@ struct Source {
     modes: [Mode; MODES.len()],
     tails: [Option<Tail>; TAILS],
     hum: [(f32, f32); HUM.len()],
-    /// Gains into the left and right channels.
+    /// Gains into the left and right channels: those heard, which follow
+    /// `target` as the volume does.
     pan: (f32, f32),
+    target: (f32, f32),
+}
+
+/// The gains into the left and right channels of a source at `position`,
+/// from −1 (left) to 1 (right): constant power, with the centre at unit gain
+/// in each channel.
+fn pan_gains(position: f32) -> (f32, f32) {
+    let angle = (position.clamp(-1.0, 1.0) + 1.0) * PI / 4.0;
+    (SQRT_2 * angle.cos(), SQRT_2 * angle.sin())
+}
+
+/// Where drive `drive` is heard with the drives `spread` apart.
+fn position(drive: usize, spread: f32) -> f32 {
+    if drive == 0 { -spread } else { spread }
 }
 
 impl Source {
     fn new(fs: f32, drive: usize) -> Source {
-        // Constant power, with the centre at unit gain in each channel.
-        let angle = (PAN[drive] + 1.0) * PI / 4.0;
+        let pan = pan_gains(position(drive, SPREAD));
         // B:'s motor hums out of step with A:'s.
         let phase = drive as f32 * 1.3;
         Source {
@@ -239,7 +255,8 @@ impl Source {
             modes: MODES.map(|m| Mode::new(fs, m)),
             tails: [None; TAILS],
             hum: [(phase.cos(), phase.sin()); HUM.len()],
-            pan: (SQRT_2 * angle.cos(), SQRT_2 * angle.sin()),
+            pan,
+            target: pan,
         }
     }
 
@@ -380,6 +397,16 @@ impl DriveSounds {
         self.volume = volume.clamp(0.0, MAX_VOLUME);
     }
 
+    /// Sets how far apart the drives are heard, from 0 (both in the middle)
+    /// to 1 (A: in the left speaker alone, B: in the right); `SPREAD` by
+    /// default. A change is reached in about `FADE_SECS`, as a new volume is.
+    pub fn set_spread(&mut self, spread: f32) {
+        let spread = spread.clamp(0.0, 1.0);
+        for (d, source) in self.sources.iter_mut().enumerate() {
+            source.target = pan_gains(position(d, spread));
+        }
+    }
+
     /// With `on`, the motor fades out once the controller has had no
     /// command for `IDLE_SECS`, and is heard again at the next one. The
     /// spindle keeps turning: only its sound goes.
@@ -397,6 +424,9 @@ impl DriveSounds {
     pub fn set_on(&mut self, on: bool) {
         if on && !self.on {
             self.gain = self.volume;
+            for source in &mut self.sources {
+                source.pan = source.target;
+            }
             self.settle();
         }
         self.on = on;
@@ -611,7 +641,10 @@ impl DriveSounds {
         }
 
         let (mut left, mut right) = (0.0, 0.0);
+        let follow = 1.0 / (FADE_SECS * self.fs);
         for (d, source) in self.sources.iter_mut().enumerate() {
+            source.pan.0 += (source.target.0 - source.pan.0) * follow;
+            source.pan.1 += (source.target.1 - source.pan.1) * follow;
             let x = out[d] + source.sample(power[d], push[d]);
             left += x * source.pan.0;
             right += x * source.pan.1;
@@ -815,5 +848,33 @@ mod tests {
         // The two powers add up to the middle's, which has unit gain in each.
         let (gl, gr) = s.sources[1].pan;
         assert!((gl * gl + gr * gr - 2.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn spread_moves_the_drives() {
+        // B: stepping: right over left.
+        let ratio = |spread: f32| {
+            let mut s = DriveSounds::new(48_000.0);
+            s.set_spread(spread);
+            s.set_on(true);
+            s.event(DriveEvent::Step { drive: 1, phase: 0, stop: false }, true);
+            let (l, r): (Vec<f32>, Vec<f32>) = (0..4800).map(|_| s.sample()).unzip();
+            rms(&r) / rms(&l)
+        };
+        assert!((ratio(0.0) - 1.0).abs() < 1e-4, "both in the middle");
+        assert!(ratio(1.0) > 1e3, "B: in the right speaker alone");
+        assert!(ratio(0.5) > ratio(SPREAD) && ratio(SPREAD) > 1.0);
+
+        // A change while playing glides to the new place.
+        let mut s = DriveSounds::new(48_000.0);
+        s.set_on(true);
+        s.set_spread(0.0);
+        s.sample();
+        assert!(s.sources[0].pan.0 > 1.0, "not at once");
+        for _ in 0..9600 {
+            s.sample();
+        }
+        let (gl, gr) = s.sources[0].pan;
+        assert!((gl - 1.0).abs() < 1e-3 && (gr - 1.0).abs() < 1e-3, "{gl} {gr}");
     }
 }

@@ -760,6 +760,7 @@ static void fatalError(NSString *message)
     [_settingsWindow setKeyClickAvailable:_keyClickAvailable];
     juku_set_drive_sounds(_machine, settingBool(kSettingDriveSounds));
     juku_set_drive_sounds_volume(_machine, (float)settingDouble(kSettingDriveSoundsVolume));
+    juku_set_drive_sounds_spread(_machine, (float)settingDouble(kSettingDriveSoundsSpread));
     juku_set_drive_idle_mute(_machine, settingBool(kSettingDriveIdleMute));
     juku_set_t32_fast_clock(_machine, settingBool(kSettingT32FastClock));
     [self applyDebugger];

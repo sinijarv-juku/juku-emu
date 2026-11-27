@@ -1,7 +1,8 @@
 //! The Settings window (frontends/macos/src/SettingsWindow.m, spec §6.7,
-//! §7.3a, §11.5): the Mac's panes, General (mouse, sound, language and
-//! Windows' file types), Display (the CRT) and Machine (the ROMs, the T3.2
-//! clock and the debugger), as the tabs of a tab control, each a simple form
+//! §7.3a, §11.5): the Mac's panes, General (mouse, language and Windows'
+//! appearance and file types), Display (the CRT), Sound (the key click and
+//! the drive sounds) and Machine (the ROMs, the T3.2 clock and the
+//! debugger), as the tabs of a tab control, each a simple form
 //! built in code with no dialog template. Changes apply at once; the window
 //! and the menus stay in step through `crate::settings_changed`, which calls
 //! `refresh`.
@@ -16,8 +17,8 @@ use std::cell::{Cell, RefCell};
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     CLR_INVALID, COLOR_BTNFACE, CreateCompatibleBitmap, CreateCompatibleDC, CreateFontIndirectW, CreateSolidBrush, DT_CALCRECT,
-    DT_NOPREFIX, DT_WORDBREAK, DeleteDC, DeleteObject, DrawTextW, FillRect, GetDC, GetMonitorInfoW, GetPixel, GetSysColor, GetSysColorBrush, GetTextExtentPoint32W, HBRUSH, HDC, HFONT,
-    HGDIOBJ, InvalidateRect, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow, ReleaseDC, SelectObject, SetBkColor, SetTextColor,
+    DT_NOPREFIX, DT_WORDBREAK, BeginPaint, DeleteDC, DeleteObject, DrawFocusRect, DrawTextW, EndPaint, FillRect, GetDC, GetMonitorInfoW, GetPixel, GetSysColor, GetSysColorBrush, GetTextExtentPoint32W, HBRUSH, HDC, HFONT,
+    HGDIOBJ, InvalidateRect, MONITOR_DEFAULTTONEAREST, PAINTSTRUCT, MONITORINFO, MonitorFromWindow, ReleaseDC, SelectObject, SetBkColor, SetTextColor,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Controls::{
@@ -28,6 +29,7 @@ use windows::Win32::UI::Controls::{
     TTTOOLINFOW, WC_TABCONTROLW,
 };
 use windows::Win32::UI::HiDpi::{AdjustWindowRectExForDpi, GetDpiForWindow, SystemParametersInfoForDpi};
+use windows::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     EnableWindow, GetActiveWindow, GetCapture, GetFocus, GetKeyState, IsWindowEnabled, SetActiveWindow, SetFocus, VK_CONTROL, VK_NEXT,
     VK_PRIOR, VK_SHIFT, VK_TAB,
@@ -95,22 +97,19 @@ struct Row {
 }
 
 /// The panes, in the order of the Mac's toolbar; their names are the tabs'.
-const PANES: [&str; 3] = ["General", "Display", "Machine"];
+const PANES: [&str; 4] = ["General", "Display", "Sound", "Machine"];
 const GENERAL: usize = 0;
 const DISPLAY: usize = 1;
-const MACHINE: usize = 2;
+const SOUND: usize = 2;
+const MACHINE: usize = 3;
 
 const KEY_CLICK_NOTE: &str = "This ROM's key click cannot be changed.";
+const SPREAD_NOTE: &str = "The two drives sat side by side in the disk unit under the monitor, A: on the left. The default places them as heard from in front of the monitor.";
 
 // The rows of SettingsWindow.m's panes, in its order, with Windows' own at
 // the end of General.
-const ROWS: [Row; 28] = [
+const ROWS: [Row; 30] = [
     Row { pane: GENERAL, label: Some("Mouse Speed:"), control: Control::Slider(MOUSE_SENSITIVITY, 0.1, 2.0), extra: 0 },
-    Row { pane: GENERAL, label: Some("Sound:"), control: Control::Check(KEY_CLICK, "Key Click", true), extra: 12 },
-    Row { pane: GENERAL, label: None, control: Control::Note(KEY_CLICK_NOTE), extra: -4 },
-    Row { pane: GENERAL, label: None, control: Control::Check(DRIVE_SOUNDS, "Drive Sounds", true), extra: 0 },
-    Row { pane: GENERAL, label: Some("Drive Volume:"), control: Control::Slider(DRIVE_SOUNDS_VOLUME, 0.0, 2.0), extra: 0 },
-    Row { pane: GENERAL, label: None, control: Control::Check(DRIVE_IDLE_MUTE, "Fade Out the Motor When Idle for 10 s", false), extra: 0 },
     Row { pane: GENERAL, label: Some("Language:"), control: Control::Language, extra: 12 },
     Row { pane: GENERAL, label: None, control: Control::Note("Takes effect the next time Juku opens."), extra: -4 },
     Row { pane: GENERAL, label: Some("Appearance:"), control: Control::Appearance, extra: 12 },
@@ -125,6 +124,14 @@ const ROWS: [Row; 28] = [
     Row { pane: DISPLAY, label: None, control: Control::Check(CRT_BEZEL_3D, "3D Frame", true), extra: 0 },
     Row { pane: DISPLAY, label: Some("Brightness:"), control: Control::Slider(CRT_BRIGHTNESS, 0.5, 1.5), extra: 0 },
     Row { pane: DISPLAY, label: None, control: Control::RestoreCrt, extra: 12 },
+    Row { pane: SOUND, label: Some("Keyboard:"), control: Control::Check(KEY_CLICK, "Key Click", true), extra: 0 },
+    Row { pane: SOUND, label: None, control: Control::Note(KEY_CLICK_NOTE), extra: -4 },
+    Row { pane: SOUND, label: Some("Disk Drives:"), control: Control::Check(DRIVE_SOUNDS, "Drive Sounds", true), extra: 12 },
+    Row { pane: SOUND, label: Some("Drive Volume:"), control: Control::Slider(DRIVE_SOUNDS_VOLUME, 0.0, 2.0), extra: 0 },
+    Row { pane: SOUND, label: Some("Drive Separation:"), control: Control::Slider(DRIVE_SOUNDS_SPREAD, 0.0, 1.0), extra: 0 },
+    Row { pane: SOUND, label: None, control: Control::Note(SPREAD_NOTE), extra: -4 },
+    // The note goes with the slider above it, not with the checkbox below.
+    Row { pane: SOUND, label: None, control: Control::Check(DRIVE_IDLE_MUTE, "Fade Out the Motor When Idle for 10 s", false), extra: 4 },
     Row { pane: MACHINE, label: Some("System ROM:"), control: Control::SystemRom, extra: 0 },
     Row { pane: MACHINE, label: None, control: Control::Note("Changing the ROM restarts the machine."), extra: -4 },
     Row { pane: MACHINE, label: Some("Expansion ROM:"), control: Control::ExpansionRom, extra: 12 },
@@ -169,6 +176,7 @@ fn default_value(key: &str) -> f64 {
         CRT_FRAME => d.frame,
         CRT_BRIGHTNESS => d.brightness,
         DRIVE_SOUNDS_VOLUME => 1.0,
+        DRIVE_SOUNDS_SPREAD => juku::drive_sound::SPREAD,
         _ => DEFAULT_MOUSE_SENSITIVITY as f32,
     }) as f64
 }
@@ -260,6 +268,47 @@ fn wrapped_height(dc: HDC, font: HFONT, text: &str, width: i32) -> i32 {
     }
 
     rect.bottom - rect.top
+}
+
+/// A slider is wider than the column by its channel's insets (`layout`),
+/// and a trackbar's focus rectangle goes round all of it, up to the label.
+/// So the trackbar's own is kept hidden, and the slider draws one round its
+/// channel, which the thumb stays within, when its window shows focus.
+extern "system" fn slider_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM, _id: usize, _data: usize) -> LRESULT {
+    match msg {
+        WM_UPDATEUISTATE => unsafe {
+            let result = DefSubclassProc(hwnd, msg, wparam, lparam);
+            DefSubclassProc(hwnd, msg, WPARAM((UISF_HIDEFOCUS << 16 | UIS_SET) as usize), LPARAM(0));
+            let _ = InvalidateRect(Some(hwnd), None, false);
+            result
+        },
+        WM_SETFOCUS | WM_KILLFOCUS => unsafe {
+            let _ = InvalidateRect(Some(hwnd), None, false);
+            DefSubclassProc(hwnd, msg, wparam, lparam)
+        },
+        // The trackbar paints into the DC it is given.
+        WM_PAINT => unsafe {
+            let mut paint = PAINTSTRUCT::default();
+            let dc = BeginPaint(hwnd, &mut paint);
+            DefSubclassProc(hwnd, WM_PAINT, WPARAM(dc.0 as usize), LPARAM(0));
+            let parent = GetParent(hwnd).unwrap_or_default();
+            let cues = SendMessageW(parent, WM_QUERYUISTATE, None, None).0 as u32;
+
+            if GetFocus() == hwnd && cues & UISF_HIDEFOCUS == 0 {
+                let mut channel = RECT::default();
+                let mut client = RECT::default();
+                send(hwnd, TBM_GETCHANNELRECT, 0, (&raw mut channel) as isize);
+                let _ = GetClientRect(hwnd, &mut client);
+                let gap = scale(2, GetDpiForWindow(hwnd));
+                let rect = RECT { left: channel.left - gap, top: client.top, right: channel.right + gap, bottom: client.bottom };
+                let _ = DrawFocusRect(dc, &rect);
+            }
+
+            let _ = EndPaint(hwnd, &paint);
+            LRESULT(0)
+        },
+        _ => unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) },
+    }
 }
 
 fn create_control(parent: HWND, class: PCWSTR, text: &str, style: u32, id: i32) -> HWND {
@@ -363,6 +412,8 @@ fn create(owner: HWND) -> Option<HWND> {
                 send(slider, TBM_SETRANGEMAX, 1, SLIDER_STEPS as isize);
                 send(slider, TBM_SETLINESIZE, 0, (SLIDER_STEPS / 100) as isize);
                 send(slider, TBM_SETPAGESIZE, 0, (SLIDER_STEPS / 10) as isize);
+                let _ = unsafe { SetWindowSubclass(slider, Some(slider_proc), 1, 0) };
+                send(slider, WM_UPDATEUISTATE, (UISF_HIDEFOCUS << 16 | UIS_SET) as usize, 0);
                 slider
             }
             Control::RestoreCrt => {
@@ -721,12 +772,17 @@ fn layout(hwnd: HWND, center: bool) {
 
                 // A trackbar draws its channel above its middle, leaving
                 // room for tick marks below even without them: the channel
-                // goes level with the label's middle instead.
+                // goes level with the label's middle instead. The channel is
+                // also inset from the trackbar's sides, by about half the
+                // thumb: the trackbar is widened by the insets, so that the
+                // channel spans the column as the other controls do.
                 if let Control::Slider(..) = spec.control {
                     let mut channel = RECT::default();
                     send(control, TBM_GETCHANNELRECT, 0, (&raw mut channel) as isize);
+                    let (inset_left, inset_right) = (channel.left, width - channel.right);
                     let top = label_top + text_height / 2 - (channel.top + channel.bottom) / 2;
-                    let _ = SetWindowPos(control, None, x + column, top, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
+                    let (left, width) = (x + column - inset_left, width + inset_left + inset_right);
+                    let _ = SetWindowPos(control, None, left, top, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
                 }
 
                 if let Some(label) = w.labels[row] {
@@ -887,7 +943,7 @@ pub fn refresh() {
 
         // The drive sounds' settings apply only while they are on.
         let drives = settings::bool_setting(DRIVE_SOUNDS, true);
-        for row in ROWS.iter().enumerate().filter(|(_, r)| matches!(r.control, Control::Slider(DRIVE_SOUNDS_VOLUME, ..) | Control::Check(DRIVE_IDLE_MUTE, ..))) {
+        for row in ROWS.iter().enumerate().filter(|(_, r)| matches!(r.control, Control::Slider(DRIVE_SOUNDS_VOLUME | DRIVE_SOUNDS_SPREAD, ..) | Control::Check(DRIVE_IDLE_MUTE, ..))) {
             enable(w.hwnd, w.controls[row.0], drives);
         }
         let changed = available != w.key_click_available;
@@ -1078,9 +1134,9 @@ fn is_note(control: HWND) -> bool {
 }
 
 /// True for the label of a disabled control, which is grayed with it, as
-/// Drive Volume: is while Drive Sounds is off. Not for a checkbox's label,
-/// Sound:, which heads the checkboxes under it too and has a title of its
-/// own to gray.
+/// Drive Volume: and Drive Separation: are while Drive Sounds is off. Not for a
+/// checkbox's label, such as Keyboard:, which heads a group and whose
+/// checkbox has a title of its own to gray.
 fn is_dimmed_label(label: HWND) -> bool {
     let row = unsafe { GetDlgCtrlID(label) } - FIRST_LABEL_ID;
 

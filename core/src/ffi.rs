@@ -258,6 +258,16 @@ pub unsafe extern "C" fn juku_set_drive_sounds_volume(m: *mut Machine, volume: f
     unsafe { &mut *m }.set_drive_sounds_volume(volume);
 }
 
+/// Sets how far apart the two drives are heard, from 0 (both in the middle)
+/// to 1 (A: left, B: right); 0.25 by default.
+///
+/// # Safety
+/// `m` must be a valid machine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn juku_set_drive_sounds_spread(m: *mut Machine, spread: f32) {
+    unsafe { &mut *m }.set_drive_sounds_spread(spread);
+}
+
 /// With `on`, the drive motors fade out once the controller has had no
 /// command for 10 s. Off in a new machine.
 ///

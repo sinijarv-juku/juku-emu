@@ -14,6 +14,7 @@ static NSString *const kSettingMouseSensitivity = @"MouseSensitivity";   // Juku
 static NSString *const kSettingKeyClick = @"KeyClick";                   // RomBios key click on/off
 static NSString *const kSettingDriveSounds = @"DriveSounds";             // floppy drive sounds on/off
 static NSString *const kSettingDriveSoundsVolume = @"DriveSoundsVolume"; // 0–2, 1 = the recordings' level halved
+static NSString *const kSettingDriveSoundsSpread = @"DriveSoundsSpread"; // 0–1: how far apart A: and B: are heard
 static NSString *const kSettingDriveIdleMute = @"DriveIdleMute";         // the motor fades out 10 s after the last disk command
 static NSString *const kSettingT32FastClock = @"T32FastClock";           // timer T3.2 at 1.23 MHz instead of the frame rate
 static NSString *const kSettingDebugger = @"AcceptDebugger";             // the debug server listens (spec §12.3)
@@ -61,6 +62,7 @@ static NSArray<NSString *> *crtSettingKeys(void)
         kSettingKeyClick: @YES,
         kSettingDriveSounds: @YES,
         kSettingDriveSoundsVolume: @1.0,
+        kSettingDriveSoundsSpread: @0.25,
         kSettingDriveIdleMute: @NO,
         kSettingT32FastClock: @NO,
         kSettingDebugger: @NO,

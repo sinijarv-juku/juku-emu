@@ -33,6 +33,7 @@ pub const MOUSE_SENSITIVITY: &str = "MouseSensitivity"; // Juku counts per mouse
 pub const KEY_CLICK: &str = "KeyClick"; // RomBios key click on/off
 pub const DRIVE_SOUNDS: &str = "DriveSounds"; // floppy drive sounds on/off
 pub const DRIVE_SOUNDS_VOLUME: &str = "DriveSoundsVolume"; // 0–2, 1 = the recordings' level halved
+pub const DRIVE_SOUNDS_SPREAD: &str = "DriveSoundsSpread"; // 0–1: how far apart A: and B: are heard
 pub const DRIVE_IDLE_MUTE: &str = "DriveIdleMute"; // the motor fades out 10 s after the last disk command
 pub const T32_FAST_CLOCK: &str = "T32FastClock"; // timer T3.2 at 1.23 MHz instead of the frame rate
 pub const SYSTEM_ROM: &str = "SystemROM"; // bundled ROM name or file path (roms.rs)
@@ -257,6 +258,7 @@ pub fn debugger_port() -> Option<u16> {
 pub fn apply_drive_sounds(m: &mut juku::Machine) {
     m.set_drive_sounds(bool_setting(DRIVE_SOUNDS, true));
     m.set_drive_sounds_volume(f32_setting(DRIVE_SOUNDS_VOLUME, 1.0));
+    m.set_drive_sounds_spread(f32_setting(DRIVE_SOUNDS_SPREAD, juku::drive_sound::SPREAD));
     m.set_drive_idle_mute(bool_setting(DRIVE_IDLE_MUTE, false));
 }
 

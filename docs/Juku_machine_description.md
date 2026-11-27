@@ -585,6 +585,7 @@ The production manual adds "+5 V, power" to this table without a pin number; pin
   - **A1:** power supply ДГШ2.087.034 (the adjustment instruction names ДГШ2.087.031, set to 12.1 V and 5 V) [BJ], giving +5 V and +12 V to both drives. It has a mains switch S1 and a POWER LED VD1.
   - **A2, A3:** two **ЕС 5323.01** floppy drives (5.25", double-sided, 80 tracks per side). They replaced the originally listed К5600.20 / СМ5640.
   - **Cable:** a single 17-wire flat cable runs from XS5 through both drives' 34-pin edge connectors (XS3, XS4). Each drive answers to its own select line, set by a jumper inside the drive.
+  - **Which is which:** the two drives sit side by side, and A: (drive 0) is the left one, seen from the front. The unit's documents do not say which slot answers to which select line; this is from a user of the machine.
   - **Signals on the drive connector** (standard Shugart / PC numbering):
 
 | 34-pin | Signal | | 34-pin | Signal |

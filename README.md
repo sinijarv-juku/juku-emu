@@ -114,11 +114,12 @@ Capture Mouse in the Input menu does it any time, and lets it go again.
 **Expansion ROMs.** Machine → Expansion ROM → Other… plugs in a ROM file,
 such as JBASIC; type `A` at the `*` prompt to start it.
 
-**Settings** has three panes. General: the mouse speed, the sounds (the
-key click, the drive sounds and their volume), the language and, on
-Windows, light or dark mode. Display: the CRT effects and the picture's
-look. Machine: the system ROM, the expansion ROM, the speed of the timer
-some programs need (RDEM, for one) and the debugger.
+**Settings** has four panes. General: the mouse speed, the language and,
+on Windows, light or dark mode. Display: the CRT effects and the
+picture's look. Sound: the key click, the drive sounds, their volume and
+how far apart the two drives are heard. Machine: the system ROM, the
+expansion ROM, the speed of the timer some programs need (RDEM, for one)
+and the debugger.
 
 ## More
 

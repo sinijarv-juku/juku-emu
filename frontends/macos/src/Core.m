@@ -109,6 +109,7 @@ extern bool             juku_set_key_click(JukuMachine *m, bool on);   // patche
 extern void             juku_set_t32_fast_clock(JukuMachine *m, bool on);   // T3.2 at 1.23 MHz, not once a frame
 extern void             juku_set_drive_sounds(JukuMachine *m, bool on);   // motor, stepping, disks in and out
 extern void             juku_set_drive_sounds_volume(JukuMachine *m, float volume);   // 0–2, 1 by default
+extern void             juku_set_drive_sounds_spread(JukuMachine *m, float spread);   // 0–1, 0.25 by default
 extern void             juku_set_drive_idle_mute(JukuMachine *m, bool on);   // motor fades out 10 s after the last command
 extern void             juku_set_dip(JukuMachine *m, uint8_t bank, uint8_t value);
 extern void             juku_mouse(JukuMachine *m, int32_t dx, int32_t dy, uint8_t buttons);   // +y down; bit 1 left, bit 0 right

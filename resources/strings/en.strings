@@ -50,10 +50,14 @@
 "Recent Images" = "Recent Images";
 "Clear Menu" = "Clear Menu";
 "Mouse Speed:" = "Mouse Speed:";
-"Sound:" = "Sound:";
+"Sound" = "Sound";
+"Keyboard:" = "Keyboard:";
+"Disk Drives:" = "Disk Drives:";
 "Key Click" = "Key Click";
 "Drive Sounds" = "Drive Sounds";
 "Drive Volume:" = "Drive Volume:";
+"Drive Separation:" = "Drive Separation:";
+"The two drives sat side by side in the disk unit under the monitor, A: on the left. The default places them as heard from in front of the monitor." = "The two drives sat side by side in the disk unit under the monitor, A: on the left. The default places them as heard from in front of the monitor.";
 "Fade Out the Motor When Idle for 10 s" = "Fade Out the Motor When Idle for 10 s";
 "Keyboard" = "Keyboard";
 "Juku E5101 keyboard" = "Juku E5101 keyboard";
