@@ -21,5 +21,6 @@ typedef struct {
     float glow;             // halo strength
     float vignette;
     unsigned int bezel3d;   // the frame's inner wall in perspective, else a flat recess
-    unsigned int pad[3];
+    unsigned int monitorFront;  // the monitor's whole front around the glass, with its badge
+    unsigned int pad[2];
 } CRTUniforms;

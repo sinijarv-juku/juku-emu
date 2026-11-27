@@ -28,6 +28,7 @@ pub const CRT_GLOW: &str = "CRTGlow";
 pub const CRT_BACKGROUND: &str = "CRTBackground"; // unlit face level, 0–1
 pub const CRT_FRAME: &str = "CRTFrame"; // monitor frame level, 0–1
 pub const CRT_BEZEL_3D: &str = "CRTBezel3D"; // the frame's inner wall in perspective
+pub const CRT_MONITOR_FRONT: &str = "CRTMonitorFront"; // the monitor's whole front, with its badge
 pub const CRT_BRIGHTNESS: &str = "CRTBrightness";
 pub const MOUSE_SENSITIVITY: &str = "MouseSensitivity"; // Juku counts per mouse count
 pub const KEY_CLICK: &str = "KeyClick"; // RomBios key click on/off
@@ -245,6 +246,7 @@ pub fn crt_settings() -> CrtSettings {
         background: f32_setting(CRT_BACKGROUND, d.background),
         frame: f32_setting(CRT_FRAME, d.frame),
         bezel3d: bool_setting(CRT_BEZEL_3D, d.bezel3d),
+        monitor_front: bool_setting(CRT_MONITOR_FRONT, d.monitor_front),
         brightness: f32_setting(CRT_BRIGHTNESS, d.brightness),
     }
 }

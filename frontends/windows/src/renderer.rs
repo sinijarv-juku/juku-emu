@@ -41,6 +41,12 @@ pub const TUBE_ASPECT: f32 = 4.0 / 3.0;
 // sides.
 const WINDOW_BEZEL: f32 = 0.095;
 
+/// With Whole Monitor, the tube leaves room for the monitor's front around
+/// the glass (Shaders.hlsl's kFrontSide, kFrontTop and kFrontBottom) and
+/// this much of the room around it, in a window and in full screen.
+const FRONT_ROOM: f32 = 0.08;
+const FRONT_MARGINS: TubeMargins = TubeMargins { side: 0.30 + FRONT_ROOM, top: 0.235 + FRONT_ROOM, bottom: 0.44 + FRONT_ROOM };
+
 const IN_FLIGHT: usize = 3;
 const BUFFERS: u32 = 3;
 const BACKBUFFER_FORMAT: DXGI_FORMAT = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -83,6 +89,7 @@ pub struct CrtSettings {
     pub background: f32,
     pub frame: f32,
     pub bezel3d: bool,
+    pub monitor_front: bool,
     pub brightness: f32,
 }
 
@@ -97,15 +104,39 @@ impl Default for CrtSettings {
             background: 0.175,
             frame: 0.1,
             bezel3d: true,
+            monitor_front: false,
             brightness: 0.91,
         }
     }
 }
 
+/// The room `tube_rect` leaves around the tube, in half-heights of it: at
+/// each side, above and below.
+#[derive(Clone, Copy, Default)]
+pub struct TubeMargins {
+    pub side: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+
+impl TubeMargins {
+    /// The same `margin` above and below, and at the sides as much as the
+    /// tube's aspect makes of it, so the drawable keeps the tube's shape.
+    pub fn even(margin: f32) -> TubeMargins {
+        TubeMargins { side: margin * TUBE_ASPECT, top: margin, bottom: margin }
+    }
+}
+
 impl CrtSettings {
-    /// The margin `tube_rect` leaves for the bezel.
-    pub fn tube_margin(&self, full_screen: bool) -> f32 {
-        if self.bezel3d && self.crt_effects && !full_screen { WINDOW_BEZEL } else { 0.0 }
+    /// The room `tube_rect` leaves for the bezel, or for the whole monitor.
+    pub fn tube_margins(&self, full_screen: bool) -> TubeMargins {
+        if self.crt_effects && self.monitor_front {
+            FRONT_MARGINS
+        } else if self.bezel3d && self.crt_effects && !full_screen {
+            TubeMargins::even(WINDOW_BEZEL)
+        } else {
+            TubeMargins::default()
+        }
     }
 }
 
@@ -129,7 +160,8 @@ struct CrtUniforms {
     glow: f32,
     vignette: f32,
     bezel3d: u32,
-    pad: [u32; 3],
+    monitor_front: u32,
+    pad: [u32; 2],
 }
 
 const UNIFORM_WORDS: u32 = (size_of::<CrtUniforms>() / 4) as u32;
@@ -139,20 +171,14 @@ fn srgb_to_linear(c: f32) -> f32 {
     if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
 }
 
-/// The largest 4:3 rectangle centred in the drawable, shrunk to leave
-/// `margin` half-heights of it above and below.
-pub fn tube_rect(width: f32, height: f32, margin: f32) -> [f32; 4] {
-    let (mut w, mut h) = (width, height);
-
-    if w / h > TUBE_ASPECT {
-        w = h * TUBE_ASPECT;
-    } else {
-        h = w / TUBE_ASPECT;
-    }
-
-    w /= 1.0 + margin;
-    h /= 1.0 + margin;
-    [((width - w) * 0.5).floor(), ((height - h) * 0.5).floor(), w, h]
+/// The largest 4:3 tube that fits in the drawable with `margins` around it,
+/// centred across and placed between its top and bottom margins: x, y, w, h.
+pub fn tube_rect(width: f32, height: f32, margins: TubeMargins) -> [f32; 4] {
+    let m = margins;
+    let scale = (width / (2.0 * (TUBE_ASPECT + m.side))).min(height / (2.0 + m.top + m.bottom));
+    let (w, h) = (2.0 * TUBE_ASPECT * scale, 2.0 * scale);
+    let y = (height - scale * (2.0 + m.top + m.bottom)) * 0.5 + scale * m.top;
+    [((width - w) * 0.5).floor(), y.floor(), w, h]
 }
 
 /// The number of mip levels of a full chain for the canvas: 9.
@@ -742,7 +768,10 @@ impl Renderer {
         unsafe { std::ptr::copy_nonoverlapping(frame.data.as_ptr(), t.video_bytes, RASTER_SIZE) };
 
         // A long time since the last picture: no afterglow from an old one.
+        // The screen with its bezel, as in a window, never the whole monitor,
+        // so that a file's thumbnail shows the picture large.
         let (width, height) = (THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+        let settings = &CrtSettings { monitor_front: false, ..*settings };
         let uniforms = Self::uniforms(width, height, 10.0, settings, false);
         let list = &self.list;
         let allocator = &self.in_flight[0].allocator;
@@ -928,7 +957,7 @@ impl Renderer {
         let [r, g, b] = PHOSPHOR_RGB.map(|c| srgb_to_linear(c as f32 / 255.0));
 
         CrtUniforms {
-            view: tube_rect(width as f32, height as f32, settings.tube_margin(full_screen)),
+            view: tube_rect(width as f32, height as f32, settings.tube_margins(full_screen)),
             // The core's raster starts at the start of the sync pulses.
             active: [
                 -VISIBLE_START_US * 8.0,
@@ -950,7 +979,8 @@ impl Renderer {
             glow: settings.glow,
             vignette: 0.25,
             bezel3d: settings.bezel3d as u32,
-            pad: [0; 3],
+            monitor_front: (settings.crt_effects && settings.monitor_front) as u32,
+            pad: [0; 2],
         }
     }
 

@@ -35,6 +35,7 @@
 "Background:" = "Background:";
 "Frame:" = "Frame:";
 "3D Frame" = "3D Frame";
+"Whole Monitor" = "Whole Monitor";
 "Brightness:" = "Brightness:";
 "Restore CRT Defaults" = "Restore CRT Defaults";
 "Input" = "Input";

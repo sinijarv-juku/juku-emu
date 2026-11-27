@@ -45,7 +45,7 @@ use windows::core::{HSTRING, PCWSTR, Result, w};
 use crate::audio::PRIME;
 use crate::disks::{Alert, DiskDrives};
 use crate::keymap;
-use crate::renderer::{CANVAS_HEIGHT, CrtSettings, Renderer, TUBE_ASPECT, tube_rect};
+use crate::renderer::{CANVAS_HEIGHT, CrtSettings, Renderer, TUBE_ASPECT, TubeMargins, tube_rect};
 use crate::roms::InstalledRoms;
 use crate::settings::{self, DEFAULT_MOUSE_SENSITIVITY, MOUSE_SENSITIVITY, SECTION_WINDOW, WINDOW_FRAME, WINDOW_MAXIMIZED};
 use crate::strings::localized;
@@ -251,8 +251,8 @@ pub fn destroy() {
 /// The content size for the View menu's `halves` (2 = 1×) in device
 /// independent pixels: at N× the tube is N points per raster line, plus the
 /// bezel margin (Main.m, contentSizeForHalves).
-fn content_size(halves: u32, margin: f32) -> (f64, f64) {
-    let height = (CANVAS_HEIGHT as f64 * halves as f64 * 0.5 * (1.0 + margin as f64)).round();
+fn content_size(halves: u32, margins: TubeMargins) -> (f64, f64) {
+    let height = (CANVAS_HEIGHT as f64 * halves as f64 * 0.5 * (1.0 + 0.5 * (margins.top + margins.bottom) as f64)).round();
     ((height * TUBE_ASPECT as f64).round(), height)
 }
 
@@ -261,8 +261,8 @@ fn scale(dips: f64, dpi: u32) -> i32 {
 }
 
 /// The window, frame and menu bar included, for the View menu's `halves`.
-fn window_size(halves: u32, margin: f32, dpi: u32) -> (i32, i32) {
-    let (w, h) = content_size(halves, margin);
+fn window_size(halves: u32, margins: TubeMargins, dpi: u32) -> (i32, i32) {
+    let (w, h) = content_size(halves, margins);
     let (extra_w, extra_h) = frame_extra(dpi);
     (scale(w, dpi) + extra_w, scale(h, dpi) + extra_h)
 }
@@ -377,9 +377,9 @@ pub fn create(machine: Machine, disks: DiskDrives, roms: InstalledRoms, audio: O
         let fits = |(w, h): (i32, i32)| w <= work.right - work.left && h <= work.bottom - work.top;
         let (w, h) = (MIN_WINDOW_HALVES + 1..=MAX_WINDOW_HALVES)
             .rev()
-            .map(|halves| window_size(halves, crt.tube_margin(false), dpi))
+            .map(|halves| window_size(halves, crt.tube_margins(false), dpi))
             .find(|&size| fits(size))
-            .unwrap_or_else(|| window_size(MIN_WINDOW_HALVES, crt.tube_margin(false), dpi));
+            .unwrap_or_else(|| window_size(MIN_WINDOW_HALVES, crt.tube_margins(false), dpi));
         let x = work.left + (work.right - work.left - w) / 2;
         let y = work.top + (work.bottom - work.top - h) / 2;
         unsafe { SetWindowPos(hwnd, None, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE)? };
@@ -716,7 +716,7 @@ impl Emu {
         }
 
         let dpi = unsafe { GetDpiForWindow(self.hwnd) } as f32 / 96.0;
-        let tube = tube_rect(client.right as f32, client.bottom as f32, self.crt.tube_margin(false));
+        let tube = tube_rect(client.right as f32, client.bottom as f32, self.crt.tube_margins(false));
         let half = CANVAS_HEIGHT as f32 * 0.5 * dpi;
         let halves = (tube[3] / half).round() as u32;
         let exact = (tube[3] - halves as f32 * half).abs() <= dpi;
@@ -725,7 +725,7 @@ impl Emu {
 
     /// True if the window at View size `halves` fits on its monitor.
     pub fn size_fits(&self, halves: u32) -> bool {
-        let (w, h) = window_size(halves, self.crt.tube_margin(false), unsafe { GetDpiForWindow(self.hwnd) });
+        let (w, h) = window_size(halves, self.crt.tube_margins(false), unsafe { GetDpiForWindow(self.hwnd) });
         let work = work_area(self.hwnd);
         w <= work.right - work.left && h <= work.bottom - work.top
     }
@@ -738,7 +738,7 @@ impl Emu {
         }
 
         let hwnd = self.hwnd;
-        let (w, h) = window_size(halves, self.crt.tube_margin(false), unsafe { GetDpiForWindow(hwnd) });
+        let (w, h) = window_size(halves, self.crt.tube_margins(false), unsafe { GetDpiForWindow(hwnd) });
         let work = work_area(hwnd);
         let mut frame = RECT::default();
 
@@ -1613,7 +1613,7 @@ extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPA
         WM_GETMINMAXINFO => {
             // At least 1× without the bezel margin.
             let dpi = unsafe { GetDpiForWindow(hwnd) };
-            let (w, h) = content_size(MIN_WINDOW_HALVES, 0.0);
+            let (w, h) = content_size(MIN_WINDOW_HALVES, TubeMargins::default());
             let (extra_w, extra_h) = frame_extra(dpi);
             let info = unsafe { &mut *(lparam.0 as *mut MINMAXINFO) };
             info.ptMinTrackSize.x = scale(w, dpi) + extra_w;

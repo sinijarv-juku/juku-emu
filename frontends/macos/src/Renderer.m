@@ -26,6 +26,27 @@ static const float kTubeAspect = 4.0f / 3.0f;
 // sides.
 static const float kWindowBezel = 0.095f;
 
+// The room tubeRect leaves around the tube, in half-heights of it: at each
+// side, above and below.
+typedef struct {
+    float side;
+    float top;
+    float bottom;
+} TubeMargins;
+
+// The same margin above and below, and at the sides as much as the tube's
+// aspect makes of it, so the drawable keeps the tube's shape.
+static TubeMargins evenMargins(float margin)
+{
+    return (TubeMargins){ margin * kTubeAspect, margin, margin };
+}
+
+// With Whole Monitor, the tube leaves room for the monitor's front around the
+// glass (Shaders.metal's kFrontSide, kFrontTop and kFrontBottom) and this much
+// of the room around it, in a window and in full screen.
+static const float kFrontRoom = 0.08f;
+static const TubeMargins kFrontMargins = { 0.30f + kFrontRoom, 0.235f + kFrontRoom, 0.44f + kFrontRoom };
+
 #define kInFlightFrames 3
 
 // The Juku shipped with a black-and-white monitor: a white P4 phosphor. Its
@@ -253,34 +274,40 @@ static void encodeMipmaps(id<MTLCommandBuffer> commandBuffer, id<MTLRenderPipeli
     return self;
 }
 
-// The largest 4:3 rectangle centred in the drawable, shrunk to leave `margin`
-// half-heights of it above and below.
-static simd_float4 tubeRect(float width, float height, float margin)
+// The largest 4:3 tube that fits in the drawable with `margins` around it,
+// centred across and placed between its top and bottom margins.
+static simd_float4 tubeRect(float width, float height, TubeMargins m)
 {
-    float w = width;
-    float h = height;
+    float scale = fminf(width / (2.0f * (kTubeAspect + m.side)), height / (2.0f + m.top + m.bottom));
+    float w = 2.0f * kTubeAspect * scale;
+    float h = 2.0f * scale;
+    float y = (height - scale * (2.0f + m.top + m.bottom)) * 0.5f + scale * m.top;
 
-    if (w / h > kTubeAspect) {
-        w = h * kTubeAspect;
-    } else {
-        h = w / kTubeAspect;
+    return (simd_float4){ floorf((width - w) * 0.5f), floorf(y), w, h };
+}
+
+// Whole Monitor is drawn: it is on, with CRT Effects.
+static BOOL monitorFrontShown(void)
+{
+    return settingBool(kSettingMonitorFront) && settingBool(kSettingCRTEffects);
+}
+
+// The room tubeRect leaves for the bezel, or for the whole monitor, with the
+// current settings.
+static TubeMargins tubeMargins(BOOL fullScreen)
+{
+    if (monitorFrontShown()) {
+        return kFrontMargins;
     }
 
-    w /= 1.0f + margin;
-    h /= 1.0f + margin;
-
-    return (simd_float4){ floorf((width - w) * 0.5f), floorf((height - h) * 0.5f), w, h };
-}
-
-// The margin tubeRect leaves for the bezel with the current settings.
-static float tubeMargin(BOOL fullScreen)
-{
     BOOL windowBezel = settingBool(kSettingBezel3D) && !fullScreen && settingBool(kSettingCRTEffects);
-    return windowBezel ? kWindowBezel : 0.0f;
+    return evenMargins(windowBezel ? kWindowBezel : 0.0f);
 }
 
+// `thumbnail`: the screen with its bezel as in a window, never the whole
+// monitor, so that a file's thumbnail shows the picture large.
 - (CRTUniforms)uniformsForFrame:(const JukuFrame *)frame target:(id<MTLTexture>)target elapsed:(double)elapsed
-                       fullScreen:(BOOL)fullScreen
+                       fullScreen:(BOOL)fullScreen thumbnail:(BOOL)thumbnail
 {
     // Long enough and both decays are zero: nothing is left of the old picture.
     float dt = (float)fmin(fmax(elapsed, 0.0), 10.0);
@@ -288,9 +315,13 @@ static float tubeMargin(BOOL fullScreen)
     float background = kBackgroundMax * fminf(fmaxf((float)settingDouble(kSettingBackground), 0.0f), 1.0f);
     float frameLevel = kFrameMax * fminf(fmaxf((float)settingDouble(kSettingFrame), 0.0f), 1.0f);
     BOOL bezel3d = settingBool(kSettingBezel3D);
+    BOOL front = monitorFrontShown() && !thumbnail;
+    TubeMargins margins = front ? kFrontMargins
+                        : thumbnail ? evenMargins(bezel3d && settingBool(kSettingCRTEffects) ? kWindowBezel : 0.0f)
+                        : tubeMargins(fullScreen);
 
     return (CRTUniforms){
-        .view = tubeRect((float)[target width], (float)[target height], tubeMargin(fullScreen)),
+        .view = tubeRect((float)[target width], (float)[target height], margins),
         // The core's raster starts at the start of the sync pulses.
         .active = { -kVisibleStartUs * 8.0f, -kVisibleStartLines, JukuRasterBytes * 8.0f, JukuRasterLines },
         .phosphor = {
@@ -310,6 +341,7 @@ static float tubeMargin(BOOL fullScreen)
         .glow = (float)settingDouble(kSettingGlow),
         .vignette = 0.25f,
         .bezel3d = bezel3d,
+        .monitorFront = front,
     };
 }
 
@@ -332,7 +364,7 @@ static float tubeMargin(BOOL fullScreen)
              bytesPerRow:JukuRasterBytes];
 
     id<MTLTexture> target = [drawable texture];
-    CRTUniforms uniforms = [self uniformsForFrame:frame target:target elapsed:elapsed fullScreen:_fullScreen];
+    CRTUniforms uniforms = [self uniformsForFrame:frame target:target elapsed:elapsed fullScreen:_fullScreen thumbnail:NO];
 
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
     dispatch_semaphore_t semaphore = _frameSemaphore;
@@ -385,7 +417,7 @@ static float tubeMargin(BOOL fullScreen)
              bytesPerRow:JukuRasterBytes];
 
     // A long time since the last picture: no afterglow from an old one.
-    CRTUniforms uniforms = [self uniformsForFrame:frame target:target elapsed:10.0 fullScreen:NO];
+    CRTUniforms uniforms = [self uniformsForFrame:frame target:target elapsed:10.0 fullScreen:NO thumbnail:YES];
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
     encodePass(commandBuffer, beam, MTLLoadActionDontCare, _decodePipeline, &uniforms, video, nil);
     encodePass(commandBuffer, phosphor, MTLLoadActionDontCare, _persistPipeline, &uniforms, beam, beam);

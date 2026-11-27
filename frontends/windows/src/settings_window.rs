@@ -108,7 +108,7 @@ const SPREAD_NOTE: &str = "The two drives sat side by side in the disk unit unde
 
 // The rows of SettingsWindow.m's panes, in its order, with Windows' own at
 // the end of General.
-const ROWS: [Row; 30] = [
+const ROWS: [Row; 31] = [
     Row { pane: GENERAL, label: Some("Mouse Speed:"), control: Control::Slider(MOUSE_SENSITIVITY, 0.1, 2.0), extra: 0 },
     Row { pane: GENERAL, label: Some("Language:"), control: Control::Language, extra: 12 },
     Row { pane: GENERAL, label: None, control: Control::Note("Takes effect the next time Juku opens."), extra: -4 },
@@ -122,6 +122,7 @@ const ROWS: [Row; 30] = [
     Row { pane: DISPLAY, label: Some("Background:"), control: Control::Slider(CRT_BACKGROUND, 0.0, 1.0), extra: 0 },
     Row { pane: DISPLAY, label: Some("Frame:"), control: Control::Slider(CRT_FRAME, 0.0, 1.0), extra: 0 },
     Row { pane: DISPLAY, label: None, control: Control::Check(CRT_BEZEL_3D, "3D Frame", true), extra: 0 },
+    Row { pane: DISPLAY, label: None, control: Control::Check(CRT_MONITOR_FRONT, "Whole Monitor", false), extra: 0 },
     Row { pane: DISPLAY, label: Some("Brightness:"), control: Control::Slider(CRT_BRIGHTNESS, 0.5, 1.5), extra: 0 },
     Row { pane: DISPLAY, label: None, control: Control::RestoreCrt, extra: 12 },
     Row { pane: SOUND, label: Some("Keyboard:"), control: Control::Check(KEY_CLICK, "Key Click", true), extra: 0 },

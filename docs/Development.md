@@ -165,6 +165,15 @@ python3 tools/keycap_glyphs.py 'SofiaSans[wght].ttf'   # weight 700 by default
 
 A test checks that every legend has its outlines.
 
+The Электроника badge on the monitor's front (Whole Monitor) is lettered
+the same way in both shaders, as line segments. `tools/badge_glyphs.py`
+draws the letters and writes the segments between the `badge strokes`
+markers of `Shaders.metal` and `Shaders.hlsl`; run it after changing one:
+
+```sh
+python3 tools/badge_glyphs.py
+```
+
 ## Continuous integration
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the tests and builds both

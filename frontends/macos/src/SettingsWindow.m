@@ -27,6 +27,7 @@
     NSInteger _pane;
     NSButton *_crtEffects;
     NSButton *_bezel3d;
+    NSButton *_monitorFront;
     NSButton *_keyClick;
     NSButton *_driveSounds;
     NSButton *_driveIdleMute;
@@ -182,6 +183,7 @@ static NSView *paneView(NSGridView *grid)
 {
     _crtEffects = [NSButton checkboxWithTitle:localized(@"CRT Effects") target:self action:@selector(crtEffectsChanged:)];
     _bezel3d = [NSButton checkboxWithTitle:localized(@"3D Frame") target:self action:@selector(bezel3dChanged:)];
+    _monitorFront = [NSButton checkboxWithTitle:localized(@"Whole Monitor") target:self action:@selector(monitorFrontChanged:)];
     _restoreCrt = [NSButton buttonWithTitle:localized(@"Restore CRT Defaults") target:self action:@selector(restoreCrtDefaults:)];
 
     NSGridView *grid = formGrid(@[
@@ -192,10 +194,11 @@ static NSView *paneView(NSGridView *grid)
         @[formLabel(@"Background:"), _sliders[kSettingBackground]],
         @[formLabel(@"Frame:"), _sliders[kSettingFrame]],
         @[[NSGridCell emptyContentView], _bezel3d],
+        @[[NSGridCell emptyContentView], _monitorFront],
         @[formLabel(@"Brightness:"), _sliders[kSettingBrightness]],
         @[[NSGridCell emptyContentView], _restoreCrt],
     ]);
-    padRows(grid, @[@8], @[]);
+    padRows(grid, @[@9], @[]);
     return paneView(grid);
 }
 
@@ -367,6 +370,7 @@ static NSView *paneView(NSGridView *grid)
 {
     [_crtEffects setState:settingBool(kSettingCRTEffects) ? NSControlStateValueOn : NSControlStateValueOff];
     [_bezel3d setState:settingBool(kSettingBezel3D) ? NSControlStateValueOn : NSControlStateValueOff];
+    [_monitorFront setState:settingBool(kSettingMonitorFront) ? NSControlStateValueOn : NSControlStateValueOff];
     [_keyClick setState:settingBool(kSettingKeyClick) ? NSControlStateValueOn : NSControlStateValueOff];
     [_driveSounds setState:settingBool(kSettingDriveSounds) ? NSControlStateValueOn : NSControlStateValueOff];
     [_driveIdleMute setState:settingBool(kSettingDriveIdleMute) ? NSControlStateValueOn : NSControlStateValueOff];
@@ -424,6 +428,11 @@ static NSView *paneView(NSGridView *grid)
 - (void)bezel3dChanged:(NSButton *)sender
 {
     setSetting(kSettingBezel3D, @([sender state] == NSControlStateValueOn));
+}
+
+- (void)monitorFrontChanged:(NSButton *)sender
+{
+    setSetting(kSettingMonitorFront, @([sender state] == NSControlStateValueOn));
 }
 
 - (void)keyClickChanged:(NSButton *)sender

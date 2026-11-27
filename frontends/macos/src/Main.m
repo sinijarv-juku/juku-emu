@@ -175,11 +175,11 @@ static void createMenubar(DiskDrives *disks)
 
 // View → Size: at N× the tube is N points per raster line (287 visible
 // lines), so 2N pixels on a retina display. The window around it depends on
-// the bezel margin (Renderer.m), which is set by CRT Effects and 3D Frame.
-// The size is given in half steps: 3 is 1.5×.
-static NSSize contentSizeForHalves(int halves, float margin)
+// the bezel margins (Renderer.m), which are set by CRT Effects, 3D Frame and
+// Whole Monitor. The size is given in half steps: 3 is 1.5×.
+static NSSize contentSizeForHalves(int halves, TubeMargins margins)
 {
-    CGFloat height = round(kCanvasHeight * halves * 0.5 * (1.0 + margin));
+    CGFloat height = round(kCanvasHeight * halves * 0.5 * (1.0 + 0.5 * (margins.top + margins.bottom)));
     return NSMakeSize(round(height * kTubeAspect), height);
 }
 
@@ -187,7 +187,7 @@ static NSSize contentSizeForHalves(int halves, float margin)
 // window, or 0 if it is not a whole half step.
 static int halvesForContentSize(NSSize size)
 {
-    simd_float4 tube = tubeRect((float)size.width, (float)size.height, tubeMargin(NO));
+    simd_float4 tube = tubeRect((float)size.width, (float)size.height, tubeMargins(NO));
     float half = kCanvasHeight * 0.5f;
     int halves = (int)lroundf(tube.w / half);
     return halves > 0 && fabsf(tube.w - halves * half) <= 1.0f ? halves : 0;
@@ -206,12 +206,12 @@ static NSWindow *createWindow(JukuMachine *machine, const JukuAudio *audio, Disk
 {
     NSWindowStyleMask styleMask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
                                   NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
-    NSRect contentRect = { NSZeroPoint, contentSizeForHalves(kMinWindowHalves, tubeMargin(NO)) };
+    NSRect contentRect = { NSZeroPoint, contentSizeForHalves(kMinWindowHalves, tubeMargins(NO)) };
     NSWindow *window = [[NSWindow alloc] initWithContentRect:contentRect styleMask:styleMask backing:NSBackingStoreBuffered defer:YES];
 
     // It opens at the largest size that fits on the screen.
     for (int halves = kMaxWindowHalves; halves > kMinWindowHalves; halves--) {
-        NSSize size = contentSizeForHalves(halves, tubeMargin(NO));
+        NSSize size = contentSizeForHalves(halves, tubeMargins(NO));
 
         if (windowFits(window, size)) {
             contentRect.size = size;
@@ -222,7 +222,7 @@ static NSWindow *createWindow(JukuMachine *machine, const JukuAudio *audio, Disk
 
     [window setTitle:localized(@"Window")];
     [window setContentAspectRatio:NSMakeSize(4.0, 3.0)];
-    [window setContentMinSize:contentSizeForHalves(kMinWindowHalves, 0.0f)];
+    [window setContentMinSize:contentSizeForHalves(kMinWindowHalves, evenMargins(0.0f))];
     [window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
     [window center];
 
@@ -858,7 +858,7 @@ static void fatalError(NSString *message)
 
     NSRect frame = [_window frame];
     NSRect content = [_window contentRectForFrameRect:frame];
-    content.size = contentSizeForHalves((int)[sender tag], tubeMargin(NO));
+    content.size = contentSizeForHalves((int)[sender tag], tubeMargins(NO));
     NSRect newFrame = [_window frameRectForContentRect:content];
     newFrame.origin.y = NSMaxY(frame) - newFrame.size.height;   // keep the title bar in place
 
@@ -928,7 +928,7 @@ static void fatalError(NSString *message)
         BOOL windowed = !([_window styleMask] & NSWindowStyleMaskFullScreen);
         BOOL current = windowed && halvesForContentSize([[_window contentView] bounds].size) == halves;
         [item setState:current ? NSControlStateValueOn : NSControlStateValueOff];
-        return windowed && windowFits(_window, contentSizeForHalves(halves, tubeMargin(NO)));
+        return windowed && windowFits(_window, contentSizeForHalves(halves, tubeMargins(NO)));
     }
 
     if ([item action] == @selector(toggleCRTEffects:)) {

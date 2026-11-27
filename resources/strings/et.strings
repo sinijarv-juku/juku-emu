@@ -35,6 +35,7 @@
 "Background:" = "Taust:";
 "Frame:" = "Raam:";
 "3D Frame" = "3D raam";
+"Whole Monitor" = "Kogu monitor";
 "Brightness:" = "Heledus:";
 "Restore CRT Defaults" = "Taasta kineskoobi vaikeseaded";
 "Input" = "Sisend";

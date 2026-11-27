@@ -9,6 +9,7 @@ static NSString *const kSettingGlow = @"CRTGlow";
 static NSString *const kSettingBackground = @"CRTBackground";             // unlit face level, 0–1
 static NSString *const kSettingFrame = @"CRTFrame";                       // monitor frame level, 0–1
 static NSString *const kSettingBezel3D = @"CRTBezel3D";                   // the frame's inner wall in perspective
+static NSString *const kSettingMonitorFront = @"CRTMonitorFront";         // the monitor's whole front, with its badge
 static NSString *const kSettingBrightness = @"CRTBrightness";
 static NSString *const kSettingMouseSensitivity = @"MouseSensitivity";   // Juku counts per point
 static NSString *const kSettingKeyClick = @"KeyClick";                   // RomBios key click on/off
@@ -57,6 +58,7 @@ static NSArray<NSString *> *crtSettingKeys(void)
         kSettingBackground: @0.175,
         kSettingFrame: @0.1,
         kSettingBezel3D: @YES,
+        kSettingMonitorFront: @NO,
         kSettingBrightness: @0.91,
         kSettingMouseSensitivity: @0.5,
         kSettingKeyClick: @YES,
