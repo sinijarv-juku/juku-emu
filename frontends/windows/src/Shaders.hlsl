@@ -9,7 +9,7 @@ struct CRTUniforms {
     float4 active;      // the core's raster inside the canvas: x, y, w, h
     float4 phosphor;    // linear phosphor colour, w = brightness
     float4 background;  // linear colour of the unlit face (room light on the glass)
-    float4 frame;       // linear colour of the monitor frame around the glass
+    float4 frame;       // linear colour of the monitor's plastic: room light × its tone; w = its reflectance
     float2 canvas;      // raster canvas size: 8 texels per µs × lines
     float2 output;      // drawable size in pixels
     float decayFast;    // per-draw decay of the main phosphor component
@@ -22,7 +22,8 @@ struct CRTUniforms {
     float vignette;
     uint bezel3d;       // the frame's inner wall in perspective, else a flat recess
     uint monitorFront;  // the monitor's whole front around the glass, with its badge
-    uint2 pad;
+    float room;         // the room light, linear, which lights the plastic, the badge and the room
+    uint pad;
 };
 
 ConstantBuffer<CRTUniforms> u : register(b0);
@@ -149,8 +150,9 @@ static const float kViewDistance = 4.5;     // from the glass, about 50 cm
 static const float kRim = 0.8;
 static const float kRimWidth = 0.08;
 
-// The diffuse reflectance of the wall, for the light from the face. It is the
-// same matte plastic as the front, which the room light gives the Frame level.
+// The diffuse reflectance of the wall, for the light from the face, as tuned
+// for the dark plastic: a lighter one, the Frame setting's tone (u.frame.w),
+// reflects more.
 static const float kWallReflectance = 0.4;
 
 // The phosphor lies behind the faceplate, about 1 cm of glass, which looks
@@ -242,7 +244,7 @@ float3 bezel(float2 p, float edge, float2 n, float2 extent)
         // down, so the bottom wall has n.y = 1.
         float3 face = faceLight(p - n * edge, n, z + kFaceplate, x, extent);
         float room = 0.5 * (1.0 + cos(phi)) * (1.0 + 0.5 * sin(phi) * n.y) * (0.5 + 0.5 * z / kBezelDepth);
-        result = kWallReflectance * (1.0 - cos(phi)) * face + room * u.frame.rgb;
+        result = max(kWallReflectance, u.frame.w) * (1.0 - cos(phi)) * face + room * u.frame.rgb;
     }
 
     return result;
@@ -269,12 +271,14 @@ static const float kFrontBottom = 0.44;
 static const float kFrontCorner = 0.08;     // the outline's corner radius
 static const float kFrontRim = 0.035;       // the rounded outer edge, seen from the front
 
-// The room behind the monitor, the badge's metal plate and its black paint,
-// against the level of the dark plastic front (u.frame): all three are lit
-// by the same room light.
-static const float kRoom = 0.45;
-static const float kPlate = 20.0;
-static const float kPaint = 0.7;
+// What the room around the monitor, the badge's metal plate, its black paint
+// and the shine on the plastic's top edge give back of the room light
+// (u.room, the Room Light setting). They do not depend on the plastic's
+// tone, the Frame setting: only the plastic itself, u.frame, does.
+static const float kRoom = 0.35;
+static const float kPlate = 0.75;
+static const float kPaint = 0.03;
+static const float kShine = 0.045;
 
 // The badge, after close-up photos of it: its top left corner from the
 // glass's bottom left corner, and its size. At its left end the emblem: a
@@ -488,9 +492,9 @@ float3 badge(float2 b, float3 front, float pixel)
     if (plate > 0.0) {
         // Brushed metal, a little brighter towards the top, where the room
         // light comes from, and at its rim; black paint on it.
-        float3 paint = u.frame.rgb * kPaint;
+        float3 paint = u.room * kPaint;
         float rim = smoothstep(-0.004, 0.0, edge);
-        float3 metal = u.frame.rgb * kPlate * (1.08 - 0.16 * b.y / kBadgeSize.y + 0.15 * rim);
+        float3 metal = u.room * kPlate * (1.08 - 0.16 * b.y / kBadgeSize.y + 0.15 * rim);
         float3 colour = metal;
 
         // The emblem.
@@ -529,7 +533,7 @@ float3 monitorFront(float2 p, float2 extent, float3 inner, float pixel)
     float2 size = float2(extent.x + kFrontSide, 1.0 + 0.5 * (kFrontTop + kFrontBottom));
     float2 d = p - float2(0.0, 0.5 * (kFrontBottom - kFrontTop));
     float e = roundedBox(d, size, kFrontCorner);
-    float3 room = u.frame.rgb * kRoom;
+    float3 room = u.room * kRoom;
     float3 result = room;
 
     if (e <= pixel) {
@@ -552,7 +556,7 @@ float3 monitorFront(float2 p, float2 extent, float3 inner, float pixel)
         float phi = asin(saturate(1.0 + e / kFrontRim));
         float lit = 0.5 * (1.0 + cos(phi)) * (1.0 - 0.5 * sin(phi) * n.y);
         float shine = (phi - 0.9) / 0.3;
-        float3 front = inner * lit + u.frame.rgb * 1.5 * max(-n.y, 0.0) * exp(-shine * shine);
+        float3 front = inner * lit + u.room * kShine * max(-n.y, 0.0) * exp(-shine * shine);
 
         front = badge(p - float2(-extent.x, 1.0) - kBadgeAt, front, pixel);
         result = lerp(front, room, smoothstep(-0.5 * pixel, 0.5 * pixel, e));

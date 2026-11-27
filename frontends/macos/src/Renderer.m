@@ -69,11 +69,16 @@ static const float kPhosphorAfterglow = 0.06f;
 static const simd_float3 kBackgroundColour = { 1.0f / 1.0164f, 1.03f / 1.0164f, 0.93f / 1.0164f };
 static const float kBackgroundMax = 0.08f;
 
-// The monitor frame around the glass. The МС6105's bezel is near-black
-// plastic, but in a lit room it is not pure black. A neutral charcoal, and its
-// level at the top of the Frame setting, as a fraction of full white.
+// The room light, at the top of the Room Light setting, as a fraction of full
+// white: it lights the monitor's plastic, the badge and the room around it.
+// The plastic, a neutral charcoal, reflects a share of it that the Frame
+// setting sets, its tone: from near black to light gray over the square of
+// the setting. At the defaults the plastic is 0.4% of white, near black, as
+// the МС6105's bezel is, and the room around it brighter.
 static const simd_float3 kFrameColour = { 1.0f, 0.97f, 0.92f };
-static const float kFrameMax = 0.04f;
+static const float kRoomMax = 0.4f;
+static const float kPlasticDark = 0.025f;
+static const float kPlasticLight = 0.6f;
 
 // Beam sigma in raster lines at the two ends of the Scanlines setting: a soft
 // beam whose lines just touch, and a thin one with wide dark gaps.
@@ -313,7 +318,9 @@ static TubeMargins tubeMargins(BOOL fullScreen)
     float dt = (float)fmin(fmax(elapsed, 0.0), 10.0);
     float scanlines = (float)settingDouble(kSettingScanlines);
     float background = kBackgroundMax * fminf(fmaxf((float)settingDouble(kSettingBackground), 0.0f), 1.0f);
-    float frameLevel = kFrameMax * fminf(fmaxf((float)settingDouble(kSettingFrame), 0.0f), 1.0f);
+    float tone = fminf(fmaxf((float)settingDouble(kSettingFrame), 0.0f), 1.0f);
+    float plastic = kPlasticDark + (kPlasticLight - kPlasticDark) * tone * tone;
+    float room = kRoomMax * fminf(fmaxf((float)settingDouble(kSettingRoom), 0.0f), 1.0f);
     BOOL bezel3d = settingBool(kSettingBezel3D);
     BOOL front = monitorFrontShown() && !thumbnail;
     TubeMargins margins = front ? kFrontMargins
@@ -329,7 +336,7 @@ static TubeMargins tubeMargins(BOOL fullScreen)
             (float)settingDouble(kSettingBrightness),
         },
         .background = simd_make_float4(kBackgroundColour * background, 0.0f),
-        .frame = simd_make_float4(kFrameColour * frameLevel, 0.0f),
+        .frame = simd_make_float4(kFrameColour * plastic * room, plastic),
         .canvas = { (float)kCanvasWidth, (float)kCanvasHeight },
         .output = { (float)[target width], (float)[target height] },
         .decayFast = expf(-dt * 1000.0f / kPhosphorFastMs),
@@ -342,6 +349,7 @@ static TubeMargins tubeMargins(BOOL fullScreen)
         .vignette = 0.25f,
         .bezel3d = bezel3d,
         .monitorFront = front,
+        .room = room,
     };
 }
 

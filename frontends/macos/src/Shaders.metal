@@ -119,8 +119,9 @@ constant float kViewDistance = 4.5;     // from the glass, about 50 cm
 constant float kRim = 0.8;
 constant float kRimWidth = 0.08;
 
-// The diffuse reflectance of the wall, for the light from the face. It is the
-// same matte plastic as the front, which the room light gives the Frame level.
+// The diffuse reflectance of the wall, for the light from the face, as tuned
+// for the dark plastic: a lighter one, the Frame setting's tone (u.frame.w),
+// reflects more.
 constant float kWallReflectance = 0.4;
 
 // The phosphor lies behind the faceplate, about 1 cm of glass, which looks
@@ -219,7 +220,7 @@ static float3 bezel(constant CRTUniforms &u, texture2d<float> phosphor,
     // down, so the bottom wall has n.y = 1.
     float3 face = faceLight(u, phosphor, p - n * edge, n, z + kFaceplate, x, extent);
     float room = 0.5 * (1.0 + cos(phi)) * (1.0 + 0.5 * sin(phi) * n.y) * (0.5 + 0.5 * z / kBezelDepth);
-    return kWallReflectance * (1.0 - cos(phi)) * face + room * u.frame.rgb;
+    return max(kWallReflectance, u.frame.w) * (1.0 - cos(phi)) * face + room * u.frame.rgb;
 }
 
 // The flat bezel, with the 3D bezel off: a recess where it meets the glass.
@@ -247,12 +248,14 @@ constant float kFrontBottom = 0.44;
 constant float kFrontCorner = 0.08;         // the outline's corner radius
 constant float kFrontRim = 0.035;           // the rounded outer edge, seen from the front
 
-// The room behind the monitor, the badge's metal plate and its black paint,
-// against the level of the dark plastic front (u.frame): all three are lit
-// by the same room light.
-constant float kRoom = 0.45;
-constant float kPlate = 20.0;
-constant float kPaint = 0.7;
+// What the room around the monitor, the badge's metal plate, its black paint
+// and the shine on the plastic's top edge give back of the room light
+// (u.room, the Room Light setting). They do not depend on the plastic's
+// tone, the Frame setting: only the plastic itself, u.frame, does.
+constant float kRoom = 0.35;
+constant float kPlate = 0.75;
+constant float kPaint = 0.03;
+constant float kShine = 0.045;
 
 // The badge, after close-up photos of it: its top left corner from the
 // glass's bottom left corner, and its size. At its left end the emblem: a
@@ -466,9 +469,9 @@ static float3 badge(constant CRTUniforms &u, float2 b, float3 front, float pixel
 
     // Brushed metal, a little brighter towards the top, where the room light
     // comes from, and at its rim; black paint on it.
-    float3 paint = u.frame.rgb * kPaint;
+    float3 paint = u.room * kPaint;
     float rim = smoothstep(-0.004, 0.0, roundedBox(b - hs, hs, 0.004));
-    float3 metal = u.frame.rgb * kPlate * (1.08 - 0.16 * b.y / kBadgeSize.y + 0.15 * rim);
+    float3 metal = u.room * kPlate * (1.08 - 0.16 * b.y / kBadgeSize.y + 0.15 * rim);
     float3 colour = metal;
 
     // The emblem.
@@ -503,7 +506,7 @@ static float3 monitorFront(constant CRTUniforms &u, float2 p, float2 extent, flo
     float2 size = float2(extent.x + kFrontSide, 1.0 + 0.5 * (kFrontTop + kFrontBottom));
     float2 d = p - float2(0.0, 0.5 * (kFrontBottom - kFrontTop));
     float e = roundedBox(d, size, kFrontCorner);
-    float3 room = u.frame.rgb * kRoom;
+    float3 room = u.room * kRoom;
 
     if (e > pixel) {
         return room;
@@ -520,7 +523,7 @@ static float3 monitorFront(constant CRTUniforms &u, float2 p, float2 extent, flo
     float phi = asin(clamp(1.0 + e / kFrontRim, 0.0, 1.0));
     float lit = 0.5 * (1.0 + cos(phi)) * (1.0 - 0.5 * sin(phi) * n.y);
     float shine = (phi - 0.9) / 0.3;
-    float3 front = inner * lit + u.frame.rgb * 1.5 * max(-n.y, 0.0) * exp(-shine * shine);
+    float3 front = inner * lit + u.room * kShine * max(-n.y, 0.0) * exp(-shine * shine);
 
     front = badge(u, p - float2(-extent.x, 1.0) - kBadgeAt, front, pixel);
     return mix(front, room, smoothstep(-0.5 * pixel, 0.5 * pixel, e));

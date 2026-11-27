@@ -193,12 +193,13 @@ static NSView *paneView(NSGridView *grid)
         @[formLabel(@"Glow:"), _sliders[kSettingGlow]],
         @[formLabel(@"Background:"), _sliders[kSettingBackground]],
         @[formLabel(@"Frame:"), _sliders[kSettingFrame]],
+        @[formLabel(@"Room Light:"), _sliders[kSettingRoom]],
         @[[NSGridCell emptyContentView], _bezel3d],
         @[[NSGridCell emptyContentView], _monitorFront],
         @[formLabel(@"Brightness:"), _sliders[kSettingBrightness]],
         @[[NSGridCell emptyContentView], _restoreCrt],
     ]);
-    padRows(grid, @[@9], @[]);
+    padRows(grid, @[@10], @[]);
     return paneView(grid);
 }
 
@@ -238,6 +239,7 @@ static NSView *paneView(NSGridView *grid)
         kSettingGlow: [self sliderFor:kSettingGlow min:0.0 max:0.4],
         kSettingBackground: [self sliderFor:kSettingBackground min:0.0 max:1.0],
         kSettingFrame: [self sliderFor:kSettingFrame min:0.0 max:1.0],
+        kSettingRoom: [self sliderFor:kSettingRoom min:0.0 max:1.0],
         kSettingBrightness: [self sliderFor:kSettingBrightness min:0.5 max:1.5],
         kSettingMouseSensitivity: [self sliderFor:kSettingMouseSensitivity min:0.1 max:2.0],
         kSettingDriveSoundsVolume: [self sliderFor:kSettingDriveSoundsVolume min:0.0 max:2.0],

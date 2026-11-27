@@ -26,7 +26,8 @@ pub const CRT_CURVATURE: &str = "CRTCurvature";
 pub const CRT_SCANLINES: &str = "CRTScanlines";
 pub const CRT_GLOW: &str = "CRTGlow";
 pub const CRT_BACKGROUND: &str = "CRTBackground"; // unlit face level, 0–1
-pub const CRT_FRAME: &str = "CRTFrame"; // monitor frame level, 0–1
+pub const CRT_FRAME: &str = "CRTFrame"; // the monitor's plastic, 0–1: dark to light
+pub const CRT_ROOM: &str = "CRTRoom"; // the room light, 0–1
 pub const CRT_BEZEL_3D: &str = "CRTBezel3D"; // the frame's inner wall in perspective
 pub const CRT_MONITOR_FRONT: &str = "CRTMonitorFront"; // the monitor's whole front, with its badge
 pub const CRT_BRIGHTNESS: &str = "CRTBrightness";
@@ -49,7 +50,7 @@ pub const KEYBOARD_TAGS: &str = "KeyboardTags"; // PC key tags in the Keyboard w
 
 /// The CRT sliders, which Restore CRT Defaults resets (Settings.m,
 /// crtSettingKeys).
-pub const CRT_SLIDERS: [&str; 6] = [CRT_CURVATURE, CRT_SCANLINES, CRT_GLOW, CRT_BACKGROUND, CRT_FRAME, CRT_BRIGHTNESS];
+pub const CRT_SLIDERS: [&str; 7] = [CRT_CURVATURE, CRT_SCANLINES, CRT_GLOW, CRT_BACKGROUND, CRT_FRAME, CRT_ROOM, CRT_BRIGHTNESS];
 
 pub const DEFAULT_MOUSE_SENSITIVITY: f64 = 0.5;
 pub const DEFAULT_DEBUGGER_PORT: u16 = 5104;
@@ -245,6 +246,7 @@ pub fn crt_settings() -> CrtSettings {
         glow: f32_setting(CRT_GLOW, d.glow),
         background: f32_setting(CRT_BACKGROUND, d.background),
         frame: f32_setting(CRT_FRAME, d.frame),
+        room: f32_setting(CRT_ROOM, d.room),
         bezel3d: bool_setting(CRT_BEZEL_3D, d.bezel3d),
         monitor_front: bool_setting(CRT_MONITOR_FRONT, d.monitor_front),
         brightness: f32_setting(CRT_BRIGHTNESS, d.brightness),

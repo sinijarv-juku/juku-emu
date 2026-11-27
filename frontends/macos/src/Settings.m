@@ -7,7 +7,8 @@ static NSString *const kSettingCurvature = @"CRTCurvature";
 static NSString *const kSettingScanlines = @"CRTScanlines";
 static NSString *const kSettingGlow = @"CRTGlow";
 static NSString *const kSettingBackground = @"CRTBackground";             // unlit face level, 0–1
-static NSString *const kSettingFrame = @"CRTFrame";                       // monitor frame level, 0–1
+static NSString *const kSettingFrame = @"CRTFrame";                       // the monitor's plastic, 0–1: dark to light
+static NSString *const kSettingRoom = @"CRTRoom";                         // the room light, 0–1
 static NSString *const kSettingBezel3D = @"CRTBezel3D";                   // the frame's inner wall in perspective
 static NSString *const kSettingMonitorFront = @"CRTMonitorFront";         // the monitor's whole front, with its badge
 static NSString *const kSettingBrightness = @"CRTBrightness";
@@ -35,7 +36,7 @@ static NSString *const kDefaultSystemRom = @"ekta37";
 // The CRT sliders, which Restore CRT Defaults resets.
 static NSArray<NSString *> *crtSettingKeys(void)
 {
-    return @[kSettingCurvature, kSettingScanlines, kSettingGlow, kSettingBackground, kSettingFrame, kSettingBrightness];
+    return @[kSettingCurvature, kSettingScanlines, kSettingGlow, kSettingBackground, kSettingFrame, kSettingRoom, kSettingBrightness];
 }
 
 // User preferences in NSUserDefaults. Read on every frame; the values are
@@ -57,6 +58,7 @@ static NSArray<NSString *> *crtSettingKeys(void)
         kSettingGlow: @0.085,
         kSettingBackground: @0.175,
         kSettingFrame: @0.1,
+        kSettingRoom: @0.32,
         kSettingBezel3D: @YES,
         kSettingMonitorFront: @NO,
         kSettingBrightness: @0.91,

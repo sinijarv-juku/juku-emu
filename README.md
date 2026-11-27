@@ -121,10 +121,11 @@ such as JBASIC; type `A` at the `*` prompt to start it.
 
 **Settings** has four panes. General: the mouse speed, the language and,
 on Windows, light or dark mode. Display: the CRT effects, the picture's
-look and, as an option, the whole monitor around the screen. Sound: the
-key click, the drive sounds, their volume and how far apart the two
-drives are heard. Machine: the system ROM, the expansion ROM, the speed
-of the timer some programs need (RDEM, for one) and the debugger.
+look, the monitor's plastic from dark to light, the room light around it
+and, as an option, the whole monitor around the screen. Sound: the key
+click, the drive sounds, their volume and how far apart the two drives
+are heard. Machine: the system ROM, the expansion ROM, the speed of the
+timer some programs need (RDEM, for one) and the debugger.
 
 ## More
 

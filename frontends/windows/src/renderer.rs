@@ -60,13 +60,19 @@ const PHOSPHOR_FAST_MS: f32 = 5.0;
 const PHOSPHOR_SLOW_MS: f32 = 60.0;
 const PHOSPHOR_AFTERGLOW: f32 = 0.06;
 
-// The unlit face and the monitor frame (Renderer.m): linear colours scaled to
-// unit luminance, and their levels at the top of the Background and Frame
-// settings, as fractions of full white.
+// The unlit face (Renderer.m): a linear colour scaled to unit luminance, and
+// its level at the top of the Background setting, as a fraction of full
+// white. The room light at the top of the Room Light setting, which lights
+// the monitor's plastic, the badge and the room around it, and the plastic,
+// a neutral charcoal, which reflects a share of it that the Frame setting
+// sets, its tone: from near black to light gray over the square of the
+// setting.
 const BACKGROUND_COLOUR: [f32; 3] = [1.0 / 1.0164, 1.03 / 1.0164, 0.93 / 1.0164];
 const BACKGROUND_MAX: f32 = 0.08;
 const FRAME_COLOUR: [f32; 3] = [1.0, 0.97, 0.92];
-const FRAME_MAX: f32 = 0.04;
+const ROOM_MAX: f32 = 0.4;
+const PLASTIC_DARK: f32 = 0.025;
+const PLASTIC_LIGHT: f32 = 0.6;
 
 // Beam sigma in raster lines at the two ends of the Scanlines setting.
 const SCANLINE_SOFT: f32 = 0.42;
@@ -88,6 +94,7 @@ pub struct CrtSettings {
     pub glow: f32,
     pub background: f32,
     pub frame: f32,
+    pub room: f32,
     pub bezel3d: bool,
     pub monitor_front: bool,
     pub brightness: f32,
@@ -103,6 +110,7 @@ impl Default for CrtSettings {
             glow: 0.085,
             background: 0.175,
             frame: 0.1,
+            room: 0.32,
             bezel3d: true,
             monitor_front: false,
             brightness: 0.91,
@@ -161,7 +169,8 @@ struct CrtUniforms {
     vignette: f32,
     bezel3d: u32,
     monitor_front: u32,
-    pad: [u32; 2],
+    room: f32,
+    pad: u32,
 }
 
 const UNIFORM_WORDS: u32 = (size_of::<CrtUniforms>() / 4) as u32;
@@ -953,7 +962,10 @@ impl Renderer {
         let dt = elapsed.clamp(0.0, 10.0) as f32;
         let unit = |v: f32| v.clamp(0.0, 1.0);
         let background = BACKGROUND_MAX * unit(settings.background);
-        let frame_level = FRAME_MAX * unit(settings.frame);
+        let tone = unit(settings.frame);
+        let plastic = PLASTIC_DARK + (PLASTIC_LIGHT - PLASTIC_DARK) * tone * tone;
+        let room = ROOM_MAX * unit(settings.room);
+        let frame_level = plastic * room;
         let [r, g, b] = PHOSPHOR_RGB.map(|c| srgb_to_linear(c as f32 / 255.0));
 
         CrtUniforms {
@@ -967,7 +979,7 @@ impl Renderer {
             ],
             phosphor: [r, g, b, settings.brightness],
             background: [BACKGROUND_COLOUR[0] * background, BACKGROUND_COLOUR[1] * background, BACKGROUND_COLOUR[2] * background, 0.0],
-            frame: [FRAME_COLOUR[0] * frame_level, FRAME_COLOUR[1] * frame_level, FRAME_COLOUR[2] * frame_level, 0.0],
+            frame: [FRAME_COLOUR[0] * frame_level, FRAME_COLOUR[1] * frame_level, FRAME_COLOUR[2] * frame_level, plastic],
             canvas: [CANVAS_WIDTH as f32, CANVAS_HEIGHT as f32],
             output: [width as f32, height as f32],
             decay_fast: (-dt * 1000.0 / PHOSPHOR_FAST_MS).exp(),
@@ -980,7 +992,8 @@ impl Renderer {
             vignette: 0.25,
             bezel3d: settings.bezel3d as u32,
             monitor_front: (settings.crt_effects && settings.monitor_front) as u32,
-            pad: [0; 2],
+            room,
+            pad: 0,
         }
     }
 

@@ -108,7 +108,7 @@ const SPREAD_NOTE: &str = "The two drives sat side by side in the disk unit unde
 
 // The rows of SettingsWindow.m's panes, in its order, with Windows' own at
 // the end of General.
-const ROWS: [Row; 31] = [
+const ROWS: [Row; 32] = [
     Row { pane: GENERAL, label: Some("Mouse Speed:"), control: Control::Slider(MOUSE_SENSITIVITY, 0.1, 2.0), extra: 0 },
     Row { pane: GENERAL, label: Some("Language:"), control: Control::Language, extra: 12 },
     Row { pane: GENERAL, label: None, control: Control::Note("Takes effect the next time Juku opens."), extra: -4 },
@@ -121,6 +121,7 @@ const ROWS: [Row; 31] = [
     Row { pane: DISPLAY, label: Some("Glow:"), control: Control::Slider(CRT_GLOW, 0.0, 0.4), extra: 0 },
     Row { pane: DISPLAY, label: Some("Background:"), control: Control::Slider(CRT_BACKGROUND, 0.0, 1.0), extra: 0 },
     Row { pane: DISPLAY, label: Some("Frame:"), control: Control::Slider(CRT_FRAME, 0.0, 1.0), extra: 0 },
+    Row { pane: DISPLAY, label: Some("Room Light:"), control: Control::Slider(CRT_ROOM, 0.0, 1.0), extra: 0 },
     Row { pane: DISPLAY, label: None, control: Control::Check(CRT_BEZEL_3D, "3D Frame", true), extra: 0 },
     Row { pane: DISPLAY, label: None, control: Control::Check(CRT_MONITOR_FRONT, "Whole Monitor", false), extra: 0 },
     Row { pane: DISPLAY, label: Some("Brightness:"), control: Control::Slider(CRT_BRIGHTNESS, 0.5, 1.5), extra: 0 },
@@ -175,6 +176,7 @@ fn default_value(key: &str) -> f64 {
         CRT_GLOW => d.glow,
         CRT_BACKGROUND => d.background,
         CRT_FRAME => d.frame,
+        CRT_ROOM => d.room,
         CRT_BRIGHTNESS => d.brightness,
         DRIVE_SOUNDS_VOLUME => 1.0,
         DRIVE_SOUNDS_SPREAD => juku::drive_sound::SPREAD,

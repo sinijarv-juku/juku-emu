@@ -9,7 +9,7 @@ typedef struct {
     simd_float4 active;     // the core's raster inside the canvas: x, y, w, h
     simd_float4 phosphor;   // linear phosphor colour, w = brightness
     simd_float4 background; // linear colour of the unlit face (room light on the glass)
-    simd_float4 frame;      // linear colour of the monitor frame around the glass
+    simd_float4 frame;      // linear colour of the monitor's plastic: room light × its tone; w = its reflectance
     simd_float2 canvas;     // raster canvas size: 8 texels per µs × lines
     simd_float2 output;     // drawable size in pixels
     float decayFast;        // per-draw decay of the main phosphor component
@@ -22,5 +22,6 @@ typedef struct {
     float vignette;
     unsigned int bezel3d;   // the frame's inner wall in perspective, else a flat recess
     unsigned int monitorFront;  // the monitor's whole front around the glass, with its badge
-    unsigned int pad[2];
+    float room;             // the room light, linear, which lights the plastic, the badge and the room
+    unsigned int pad;
 } CRTUniforms;
