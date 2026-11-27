@@ -102,15 +102,16 @@ static float lineIntensity(texture2d<float> tex, float x, float line, float afte
 }
 
 // ---- The bezel ---------------------------------------------------------------
-// The МС6105's bezel stands about 1 cm in front of the edge of the glass, on a
-// face about 18 cm tall. Its inner wall leans out from the glass at
-// `kWallSlope` from the line of sight, and turns into the front over a
-// rounded lip of radius `kLipRadius`. Seen in perspective by a viewer in front
-// of the middle of the tube, the wall shows as a band around the glass, widest
-// at the sides. Lengths are in half-heights of the tube.
-constant float kBezelDepth = 0.11;
+// The МС6105's bezel, a copy of DEC's VR201's, stands about 9 mm in front of
+// the edge of the glass, on a face about 18 cm tall (measured from photos,
+// MD §7.4). Its inner wall leans out from the glass at `kWallSlope` from the
+// line of sight, and turns into the front over a rounded lip of radius
+// `kLipRadius`. Seen in perspective by a viewer in front of the middle of the
+// tube, the wall shows as a band around the glass, widest at the sides.
+// Lengths are in half-heights of the tube.
+constant float kBezelDepth = 0.1;
 constant float kWallSlope = 0.524;      // 30°
-constant float kLipRadius = 0.04;
+constant float kLipRadius = 0.035;
 constant float kViewDistance = 4.5;     // from the glass, about 50 cm
 
 // The unlit face fades to `kRim` of its level at the edge of the glass, in the
