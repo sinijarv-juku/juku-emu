@@ -115,6 +115,7 @@ const ID_OPEN_SNAPSHOT: u16 = 104;
 const ID_SAVE_SNAPSHOT: u16 = 106;
 const ID_QUICK_SAVE: u16 = 107;
 const ID_QUICK_LOAD: u16 = 108;
+const ID_SAVE_QUICK_SAVE_AS: u16 = 109;
 const ID_SYSTEM_ROM: u16 = 110; // + the bundled ROM's place in SYSTEM_ROMS
 const ID_SYSTEM_ROM_FILE: u16 = 118;
 const ID_SYSTEM_ROM_OTHER: u16 = 119;
@@ -237,6 +238,7 @@ fn create_menu_bar() -> Result<HMENU> {
     add_item(machine, ID_SAVE_SNAPSHOT, "Save Snapshot…", "Alt+Shift+S")?;
     add_item(machine, ID_QUICK_SAVE, "Quick Save", "Alt+S")?;
     add_item(machine, ID_QUICK_LOAD, "Quick Load", "Alt+L")?;
+    add_item(machine, ID_SAVE_QUICK_SAVE_AS, "Save Quick Save As…", "")?;
     add_separator(machine)?;
     add_item(machine, ID_PAUSE, "Pause", "Alt+P")?;
     add_item(machine, ID_WARP, "Warp Speed", "Alt+W")?;
@@ -489,6 +491,7 @@ pub fn update_menu(menu: HMENU) {
     check(ID_CAPTURE_MOUSE, captured);
     check(ID_KEYBOARD, keyboard_window::visible());
     enable(ID_QUICK_LOAD, snapshots::can_quick_load());
+    enable(ID_SAVE_QUICK_SAVE_AS, snapshots::can_quick_load());
 
     for drive in 0..DRIVES {
         let id = drive as u16;
@@ -687,6 +690,11 @@ pub fn command(hwnd: HWND, id: u16) {
         ID_QUICK_LOAD => {
             if snapshots::can_quick_load() {
                 snapshots::quick_load(hwnd);
+            }
+        }
+        ID_SAVE_QUICK_SAVE_AS => {
+            if snapshots::can_quick_load() {
+                snapshots::save_quick_save_as(hwnd);
             }
         }
         ID_INSERT..ID_EJECT if drive(ID_INSERT) < DRIVES => {

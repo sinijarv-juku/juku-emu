@@ -21,7 +21,8 @@ RomBios in ROM and EKDOS, a CP/M compatible system, on 5.25" floppies.
   stepping and door.
 - **Snapshots:** the complete machine state, including the disks, saved
   to a file. Finder and Explorer show a thumbnail of the screen. Quick
-  save and quick load have keyboard shortcuts.
+  save and quick load have keyboard shortcuts, and Save Quick Save As…
+  keeps a quick save as a snapshot file of its own.
 - **ROMs:** RomBios 3.43m (the default) and 3.43, and the earlier JMON 3.3
   monitor with BASIC, are included. Other system ROM files and expansion
   ROMs, such as JBASIC, can be loaded.

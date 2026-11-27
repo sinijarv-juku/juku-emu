@@ -30,11 +30,11 @@
 "CRT Effects" = "Kineskoobiefektid";
 "Enter Full Screen" = "Täisekraan";
 "Curvature:" = "Kumerus:";
-"Scanlines:" = "Laotusjooned:";
+"Scanlines:" = "Realaotusjooned:";
 "Glow:" = "Kuma:";
 "Background:" = "Taust:";
 "Frame:" = "Raam:";
-"3D Frame" = "Ruumiline raam";
+"3D Frame" = "3D raam";
 "Brightness:" = "Heledus:";
 "Restore CRT Defaults" = "Taasta kineskoobi vaikeseaded";
 "Input" = "Sisend";
@@ -54,7 +54,7 @@
 "Key Click" = "Klahviklõps";
 "Drive Sounds" = "Kettaseadme helid";
 "Drive Volume:" = "Ketaste helitugevus:";
-"Fade Out the Motor When Idle for 10 s" = "Hääbuta mootori heli 10 s jõudeoleku järel";
+"Fade Out the Motor When Idle for 10 s" = "Vaigista mootori heli peale 10 s jõudeolekut";
 "Keyboard" = "Klaviatuur";
 "Juku E5101 keyboard" = "Juku E5101 klaviatuur";
 "Click a key to press it. SHIFT and CTRL stay down until the next key." = "Klahvi vajutamiseks klõpsa sellel. SHIFT ja CTRL jäävad alla järgmise klahvini.";
@@ -106,7 +106,7 @@
 "Start it with A at the * prompt. Changing it restarts the machine." = "Käivita see käsuga A viiba * juures. Muutmine käivitab masina uuesti.";
 "Timer T3.2:" = "Taimer T3.2:";
 "Clock at 1.23 MHz" = "Taktsagedus 1,23 MHz";
-"RDEM needs it. The RomBios stopwatch then runs too fast." = "RDEM vajab seda. RomBiosi stopper käib siis liiga kiiresti.";
+"RDEM needs it, but the RomBios stopwatch then runs too fast." = "RDEM vajab seda, kuid RomBiosi stopper käib siis liiga kiiresti.";
 "Debugger:" = "Silur:";
 "Accept Connections" = "Võta ühendusi vastu";
 "VS Code and other DAP clients connect on port %ld, from this Mac only." = "VS Code ja teised DAP-kliendid ühenduvad pordil %ld, ainult sellest Macist.";
@@ -119,6 +119,7 @@
 "Save Snapshot…" = "Salvesta hetktõmmis…";
 "Quick Save" = "Kiirsalvestus";
 "Quick Load" = "Kiirlaadimine";
+"Save Quick Save As…" = "Salvesta kiirsalvestus nimega…";
 "Juku %@" = "Juku %@";
 "Snapshot Saved" = "Hetktõmmis salvestatud";
 "Snapshot Loaded" = "Hetktõmmis laetud";
@@ -156,7 +157,7 @@
 "Right Alt" = "parem Alt";
 "right Alt" = "parem Alt";
 "Juku Snapshots" = "Juku hetktõmmised";
-"Juku Disk Image" = "Juku kettakujutis";
+"Juku Disk Image" = "Juku kettatõmmis";
 "Juku Snapshot" = "Juku hetktõmmis";
 "Files:" = "Failid:";
 "Register File Types" = "Registreeri failitüübid";
@@ -205,3 +206,4 @@
 "&Save Snapshot…" = "Salvesta &hetktõmmis…";
 "&Quick Save" = "&Kiirsalvestus";
 "&Quick Load" = "Kii&rlaadimine";
+"&Save Quick Save As…" = "Salvesta kiirsalvestus &nimega…";

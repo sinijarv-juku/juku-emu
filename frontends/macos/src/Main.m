@@ -95,6 +95,7 @@ static void createMenubar(DiskDrives *disks)
     [saveSnapshot setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagShift];
     addMenuItem(machineMenu, @"Quick Save", @selector(quickSave:), @"s");
     addMenuItem(machineMenu, @"Quick Load", @selector(quickLoad:), @"l");
+    addMenuItem(machineMenu, @"Save Quick Save As…", @selector(saveQuickSaveAs:), @"");
     [machineMenu addItem:[NSMenuItem separatorItem]];
     addMenuItem(machineMenu, @"Pause", @selector(togglePause:), @"p");
     addMenuItem(machineMenu, @"Warp Speed", @selector(toggleWarp:), @"w");
@@ -627,21 +628,66 @@ static void fatalError(NSString *message)
     }];
 }
 
-// The snapshot is taken when the item is chosen, not when the panel closes.
+// The snapshot is taken when the item is chosen, not when the panel closes,
+// and the machine is paused while the panel is open, so that it goes on from
+// the moment saved. A machine paused already stays paused.
 - (void)saveSnapshot:(id)sender
 {
+    EmuView *view = [self emuView];
+    BOOL wasPaused = [view paused];
+
+    if (!wasPaused) {
+        [view setPaused:YES];
+    }
+
     NSData *data = [self snapshotData];
 
     if (!data) {
+        if (!wasPaused) {
+            [view setPaused:NO];
+        }
+
         return;
     }
 
+    [self saveSnapshot:data takenAt:[NSDate date] closed:^{
+        if (!wasPaused) {
+            [view setPaused:NO];
+        }
+    }];
+}
+
+// Machine → Save Quick Save As…: the Quick Save file copied to a snapshot
+// file of its own, offered with the time it was saved in its name.
+- (void)saveQuickSaveAs:(id)sender
+{
+    NSURL *url = quickSaveURL();
+    NSData *data = [NSData dataWithContentsOfURL:url];
+    NSDate *saved = nil;
+
+    if (!data) {
+        showSnapshotAlert(@"The snapshot “%@” could not be read.", [url lastPathComponent]);
+        return;
+    }
+
+    [url getResourceValue:&saved forKey:NSURLContentModificationDateKey error:nil];
+    [self saveSnapshot:data takenAt:saved ?: [NSDate date] closed:nil];
+}
+
+// The save panel for a snapshot file, named `Juku <date time>`. `closed`, if
+// any, runs as the panel closes, before the file is written.
+- (void)saveSnapshot:(NSData *)data takenAt:(NSDate *)date closed:(void (^)(void))closed
+{
     NSDateFormatter *format = [[NSDateFormatter alloc] init];
     [format setDateFormat:@"yyyy-MM-dd HH.mm"];
     NSSavePanel *panel = [NSSavePanel savePanel];
     [panel setAllowedContentTypes:@[snapshotContentType()]];
-    [panel setNameFieldStringValue:[NSString stringWithFormat:localized(@"Juku %@"), [format stringFromDate:[NSDate date]]]];
+    [panel setNameFieldStringValue:[NSString stringWithFormat:localized(@"Juku %@"), [format stringFromDate:date]]];
     [panel beginSheetModalForWindow:_window completionHandler:^(NSModalResponse result) {
+        if (closed) {
+            closed();
+        }
+
         if (result != NSModalResponseOK) {
             return;
         }
@@ -889,7 +935,7 @@ static void fatalError(NSString *message)
         return YES;
     }
 
-    if ([item action] == @selector(quickLoad:)) {
+    if ([item action] == @selector(quickLoad:) || [item action] == @selector(saveQuickSaveAs:)) {
         return [quickSaveURL() checkResourceIsReachableAndReturnError:nil];
     }
 

@@ -130,7 +130,7 @@ const ROWS: [Row; 28] = [
     Row { pane: MACHINE, label: Some("Expansion ROM:"), control: Control::ExpansionRom, extra: 12 },
     Row { pane: MACHINE, label: None, control: Control::Note("Start it with A at the * prompt. Changing it restarts the machine."), extra: -4 },
     Row { pane: MACHINE, label: Some("Timer T3.2:"), control: Control::Check(T32_FAST_CLOCK, "Clock at 1.23 MHz", false), extra: 12 },
-    Row { pane: MACHINE, label: None, control: Control::Note("RDEM needs it. The RomBios stopwatch then runs too fast."), extra: -4 },
+    Row { pane: MACHINE, label: None, control: Control::Note("RDEM needs it, but the RomBios stopwatch then runs too fast."), extra: -4 },
     Row { pane: MACHINE, label: Some("Debugger:"), control: Control::Check(ACCEPT_DEBUGGER, "Accept Connections", false), extra: 12 },
     Row { pane: MACHINE, label: None, control: Control::DebuggerNote, extra: -4 },
 ];

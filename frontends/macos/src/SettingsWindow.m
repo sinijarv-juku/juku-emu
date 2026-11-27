@@ -187,7 +187,7 @@ static NSView *paneView(NSGridView *grid)
         @[formLabel(@"Expansion ROM:"), _expansionRom],
         @[[NSGridCell emptyContentView], formNote(@"Start it with A at the * prompt. Changing it restarts the machine.")],
         @[formLabel(@"Timer T3.2:"), _t32FastClock],
-        @[[NSGridCell emptyContentView], formNote(@"RDEM needs it. The RomBios stopwatch then runs too fast.")],
+        @[[NSGridCell emptyContentView], formNote(@"RDEM needs it, but the RomBios stopwatch then runs too fast.")],
         @[formLabel(@"Debugger:"), _debugger],
         @[[NSGridCell emptyContentView], _debuggerNote],
     ]);

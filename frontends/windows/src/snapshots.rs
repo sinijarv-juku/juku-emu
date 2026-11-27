@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use juku::snapshot::SnapshotError;
-use windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::{FILETIME, HWND, SYSTEMTIME};
 use windows::Win32::Graphics::Imaging::{
     CLSID_WICImagingFactory, GUID_ContainerFormatPng, GUID_WICPixelFormat24bppBGR, IWICImagingFactory, WICBitmapEncoderNoCache,
 };
@@ -20,6 +20,7 @@ use windows::Win32::Security::Cryptography::{
 };
 use windows::Win32::System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance, STREAM_SEEK_END, STREAM_SEEK_SET};
 use windows::Win32::System::SystemInformation::{GetLocalTime, GetSystemTime};
+use windows::Win32::System::Time::{FileTimeToSystemTime, SystemTimeToTzSpecificLocalTime};
 use windows::Win32::UI::Shell::SHCreateMemStream;
 
 use crate::disks::{self, Alert};
@@ -508,27 +509,91 @@ pub fn choose_and_open(owner: HWND) {
 }
 
 /// Machine → Save Snapshot… (Alt+Shift+S). The snapshot is taken when the
-/// item is chosen, not when the dialog closes. The dialog opens in
-/// `Snapshots` the first time, then in the folder used last.
+/// item is chosen, not when the dialog closes, and the machine is paused
+/// while the dialog is open, so that it goes on from the moment saved; a
+/// machine paused already stays paused.
 pub fn save(owner: HWND) {
-    let Some(Some(data)) = emu_window::with_emu(snapshot_data) else {
+    let Some((was_paused, data)) = emu_window::with_emu(|emu| {
+        let was_paused = emu.paused();
+
+        if !was_paused {
+            emu.set_paused(true);
+        }
+
+        (was_paused, snapshot_data(emu))
+    }) else {
+        return;
+    };
+    let resume = || {
+        if !was_paused {
+            emu_window::with_emu(|emu| emu.set_paused(false));
+        }
+    };
+    let Some(data) = data else {
+        resume();
         return;
     };
 
-    let t = unsafe { GetLocalTime() };
+    let path = choose_save_path(owner, unsafe { GetLocalTime() });
+    resume();
+
+    if let Some(path) = path {
+        write_snapshot(owner, &path, &data);
+    }
+}
+
+/// Machine → Save Quick Save As…: the Quick Save file copied to a snapshot
+/// file of its own, offered with the time it was saved in its name.
+pub fn save_quick_save_as(owner: HWND) {
+    let Some(source) = quick_save_path() else {
+        return;
+    };
+
+    let Ok(data) = std::fs::read(&source) else {
+        show_alerts(owner, vec![Alert::new(CANNOT_READ, &source)]);
+        return;
+    };
+
+    if let Some(path) = choose_save_path(owner, modified_local_time(&source)) {
+        write_snapshot(owner, &path, &data);
+    }
+}
+
+/// The save dialog for a snapshot taken at `t`, which it offers as
+/// `Juku <date time>`. It opens in `Snapshots` the first time, then in the
+/// folder used last.
+fn choose_save_path(owner: HWND, t: SYSTEMTIME) -> Option<PathBuf> {
     let stamp = format!("{:04}-{:02}-{:02} {:02}.{:02}", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute);
     let name = localized("Juku %@").replace("%@", &stamp);
     let folder = subfolder("Snapshots");
+    file_dialogs::save_file(owner, "Save Snapshot…", &SNAPSHOTS, EXTENSION, folder.as_deref().map(Folder::Default), &name)
+}
 
-    let Some(path) = file_dialogs::save_file(owner, "Save Snapshot…", &SNAPSHOTS, EXTENSION, folder.as_deref().map(Folder::Default), &name)
-    else {
-        return;
-    };
-
-    if crate::disks::write_atomically(&path, &data).is_ok() {
-        recent_disks::add_to_jump_list(&path);
+fn write_snapshot(owner: HWND, path: &Path, data: &[u8]) {
+    if crate::disks::write_atomically(path, data).is_ok() {
+        recent_disks::add_to_jump_list(path);
     } else {
-        show_alerts(owner, vec![Alert::new(CANNOT_SAVE, &path)]);
+        show_alerts(owner, vec![Alert::new(CANNOT_SAVE, path)]);
+    }
+}
+
+/// The local time `path` was last written, or now if it cannot be had.
+fn modified_local_time(path: &Path) -> SYSTEMTIME {
+    use std::os::windows::fs::MetadataExt;
+
+    let now = unsafe { GetLocalTime() };
+    let Ok(written) = std::fs::metadata(path).map(|m| m.last_write_time()) else {
+        return now;
+    };
+    let file_time = FILETIME { dwLowDateTime: written as u32, dwHighDateTime: (written >> 32) as u32 };
+    let (mut utc, mut local) = (SYSTEMTIME::default(), SYSTEMTIME::default());
+
+    unsafe {
+        if FileTimeToSystemTime(&file_time, &mut utc).is_ok() && SystemTimeToTzSpecificLocalTime(None, &utc, &mut local).is_ok() {
+            local
+        } else {
+            now
+        }
     }
 }
 
