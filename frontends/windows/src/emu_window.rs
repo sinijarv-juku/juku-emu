@@ -316,7 +316,7 @@ fn refresh_period(hwnd: HWND) -> f64 {
 }
 
 /// The app's icon at the size of system metrics `cx` and `cy`.
-fn icon(instance: windows::Win32::Foundation::HINSTANCE, cx: SYSTEM_METRICS_INDEX, cy: SYSTEM_METRICS_INDEX) -> HICON {
+pub fn icon(instance: windows::Win32::Foundation::HINSTANCE, cx: SYSTEM_METRICS_INDEX, cy: SYSTEM_METRICS_INDEX) -> HICON {
     let (cx, cy) = unsafe { (GetSystemMetrics(cx), GetSystemMetrics(cy)) };
     unsafe { LoadImageW(Some(instance), crate::APP_ICON, IMAGE_ICON, cx, cy, LR_DEFAULTCOLOR) }.map_or(HICON::default(), |h| HICON(h.0))
 }
@@ -428,7 +428,7 @@ pub fn create(machine: Machine, disks: DiskDrives, roms: InstalledRoms, audio: O
             settle_until: now + SETTLE_SECONDS,
             last_draw: 0.0,
             phosphor_time: now,
-            frame_stale: false,
+            frame_stale: true, // as after a View size: the first frame on the screen
             shift: 0,
             ctrl: 0,
             left_alt: false,
@@ -1103,6 +1103,7 @@ impl Emu {
     /// come for a while.
     pub fn tick(&mut self, now: f64) {
         self.run_until(now);
+        crate::keyboard_window::follow(&self.machine);
 
         if unsafe { IsIconic(self.hwnd) }.as_bool() {
             return; // what is on the screen when it comes back is drawn then
@@ -1136,7 +1137,8 @@ impl Emu {
             // part of the menu bar the window gained showing the desktop on
             // the screen, though screenshots showed it painted, until the
             // frame was painted again once the desktop had been composed
-            // with the window at its new size (spec §11.5).
+            // with the window at its new size; and opening at a size that is
+            // none of the View sizes left the whole bar empty (spec §11.5).
             if std::mem::take(&mut self.frame_stale) {
                 unsafe {
                     let _ = DwmFlush();
@@ -1421,6 +1423,8 @@ extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPA
                 return LRESULT(0);
             }
         }
+        // The Keyboard window's tags follow the layout (spec §11.3).
+        WM_INPUTLANGCHANGE => crate::keyboard_window::layout_changed(),
         WM_SETFOCUS => {
             with_emu(|emu| emu.left_alt = unsafe { GetKeyState(VK_LMENU.0 as i32) } < 0);
         }

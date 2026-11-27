@@ -3,6 +3,7 @@
 #import <Carbon/Carbon.h>   // kVK_* virtual key codes
 
 #import "Core.m"
+#import "Strings.m"
 
 // Positional mapping from macOS virtual key codes to Juku keys (MD §6.3,
 // spec §6.4). Entries hold `column << 3 | row` plus a "mapped" flag, so that
@@ -112,10 +113,201 @@ static const uint16_t kKeymap[128] = {
 // Keys reached through flagsChanged rather than keyDown. Caps Lock is not
 // one: the core makes the guest follow the host's lock state.
 static const uint8_t kJukuKeySemicolonPlus = 11 << 3 | 1;   // Right Option: no host key in its place
+static const uint8_t kJukuKeyCaps = 3 << 3 | 5;             // follows the host's Caps Lock
 
 // Juku key for a host key code, or -1 if the key is not mapped.
 static int jukuKeyForKeyCode(unsigned short keyCode)
 {
     uint16_t entry = keyCode < 128 ? kKeymap[keyCode] : 0;
     return entry ? (entry & 0xFF) : -1;
+}
+
+// ---- Host keys by name, for the keyboard window (spec §6.4) ------------------
+
+// A Mac key that reaches a Juku key: its tag, the short label the keyboard
+// window puts on the Juku key, and its name in the window's info strip.
+@interface HostKey: NSObject
+@property(nonatomic, copy) NSString *tag;
+@property(nonatomic, copy) NSString *name;
+@property(nonatomic) BOOL natural;      // where the Juku legend says it is
+@property(nonatomic) BOOL keypad;
+@end
+
+@implementation HostKey
+@end
+
+static BOOL isKeypadKeyCode(unsigned short keyCode)
+{
+    switch (keyCode) {
+    case kVK_ANSI_Keypad0: case kVK_ANSI_Keypad1: case kVK_ANSI_Keypad2: case kVK_ANSI_Keypad3:
+    case kVK_ANSI_Keypad4: case kVK_ANSI_Keypad5: case kVK_ANSI_Keypad6: case kVK_ANSI_Keypad7:
+    case kVK_ANSI_Keypad8: case kVK_ANSI_Keypad9: case kVK_ANSI_KeypadPlus: case kVK_ANSI_KeypadMinus:
+    case kVK_ANSI_KeypadMultiply: case kVK_ANSI_KeypadDivide: case kVK_ANSI_KeypadDecimal:
+    case kVK_ANSI_KeypadEnter:
+        return YES;
+    default:
+        return NO;
+    }
+}
+
+// The character a key types without modifiers in the current input source,
+// upper case for a letter, or nil.
+static NSString *layoutCharacter(unsigned short keyCode)
+{
+    TISInputSourceRef source = TISCopyCurrentKeyboardLayoutInputSource();
+    CFDataRef data = source ? TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) : NULL;
+
+    if (!data) {
+        // An input method without a layout of its own, e.g. Japanese.
+        if (source) {
+            CFRelease(source);
+        }
+
+        source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource();
+        data = source ? TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) : NULL;
+    }
+
+    NSString *result = nil;
+
+    if (data) {
+        const UCKeyboardLayout *layout = (const UCKeyboardLayout *)CFDataGetBytePtr(data);
+        UInt32 deadKeys = 0;
+        UniChar chars[4];
+        UniCharCount length = 0;
+        OSStatus status = UCKeyTranslate(layout, keyCode, kUCKeyActionDisplay, 0, LMGetKbdType(),
+                                         kUCKeyTranslateNoDeadKeysBit, &deadKeys, 4, &length, chars);
+
+        if (status == noErr && length > 0 && chars[0] > ' ') {
+            result = [NSString stringWithCharacters:chars length:length];
+            NSString *upper = [result uppercaseString];
+
+            if ([upper length] == [result length]) {
+                result = upper;     // not ß → SS
+            }
+        }
+    }
+
+    if (source) {
+        CFRelease(source);
+    }
+
+    return result;
+}
+
+// Keys with a name rather than a character: tag, name.
+static NSArray<NSString *> *namedHostKey(unsigned short keyCode)
+{
+    switch (keyCode) {
+    case kVK_Return: return @[@"return", localized(@"Return")];
+    case kVK_ANSI_KeypadEnter: return @[@"enter", localized(@"keypad Enter")];
+    case kVK_Tab: return @[@"tab", localized(@"Tab")];
+    case kVK_Space: return @[@"space", localized(@"Space bar")];
+    case kVK_Delete: return @[@"⌫", localized(@"Delete ⌫")];
+    case kVK_ForwardDelete: return @[@"⌦", localized(@"Forward Delete ⌦ (fn ⌫ on a laptop)")];
+    case kVK_Escape: return @[@"esc", localized(@"Esc")];
+    case kVK_Home: return @[@"home", localized(@"Home (fn ← on a laptop)")];
+    case kVK_End: return @[@"end", localized(@"End (fn → on a laptop)")];
+    case kVK_PageUp: return @[@"pgup", localized(@"Page Up (fn ↑ on a laptop)")];
+    case kVK_PageDown: return @[@"pgdn", localized(@"Page Down (fn ↓ on a laptop)")];
+    case kVK_LeftArrow: return @[@"←", @"←"];
+    case kVK_RightArrow: return @[@"→", @"→"];
+    case kVK_UpArrow: return @[@"↑", @"↑"];
+    case kVK_DownArrow: return @[@"↓", @"↓"];
+    case kVK_F1: return @[@"F1", @"F1"];
+    case kVK_F2: return @[@"F2", @"F2"];
+    case kVK_F3: return @[@"F3", @"F3"];
+    case kVK_F4: return @[@"F4", @"F4"];
+    case kVK_F5: return @[@"F5", @"F5"];
+    case kVK_F6: return @[@"F6", @"F6"];
+    case kVK_F7: return @[@"F7", @"F7"];
+    case kVK_F8: return @[@"F8", @"F8"];
+    default: return nil;
+    }
+}
+
+// Whether a key's tag is what the Juku key says: one of its legends, or for
+// the named keys, the key in the same place (Esc for ESC, ← for ←).
+static BOOL tagMatchesKeycap(NSString *tag, unsigned short keyCode, const JukuKeycap *keycap)
+{
+    NSString *top = [NSString stringWithUTF8String:keycap->top];
+    NSString *bottom = [NSString stringWithUTF8String:keycap->bottom];
+
+    switch (keycap->legend) {
+    case JukuLegendPair:
+        tag = [tag isEqualToString:@"-"] ? @"−" : tag;
+        return [tag caseInsensitiveCompare:top] == NSOrderedSame || [tag caseInsensitiveCompare:bottom] == NSOrderedSame;
+    case JukuLegendBlank:
+        return keyCode == kVK_Space;
+    default:
+        return [tag caseInsensitiveCompare:top] == NSOrderedSame;
+    }
+}
+
+// The Mac keys that reach a Juku keycap, in the current input source: the
+// main keys, the ones where the Juku legend says first, then the keypad.
+static NSArray<HostKey *> *hostKeysForKeycap(const JukuKeycap *keycap)
+{
+    NSMutableArray<HostKey *> *keys = [NSMutableArray array];
+    NSMutableArray<HostKey *> *keypad = [NSMutableArray array];
+    BOOL iso = KBGetLayoutType(LMGetKbdType()) == kKeyboardISO;
+
+    // On an ISO keyboard § is the key left of 1, where an ANSI one has `.
+    if (iso && keycap->id == jukuKeyForKeyCode(kVK_ISO_Section)) {
+        HostKey *key = [[HostKey alloc] init];
+        [key setTag:layoutCharacter(kVK_ISO_Section) ?: @"§"];
+        [key setName:[key tag]];
+        [keys addObject:key];
+    }
+
+    for (unsigned short code = 0; code < 128; code++) {
+        if (jukuKeyForKeyCode(code) != keycap->id || code == kVK_ISO_Section) {
+            continue;
+        }
+
+        HostKey *key = [[HostKey alloc] init];
+        NSArray<NSString *> *named = namedHostKey(code);
+        NSString *character = named ? nil : layoutCharacter(code);
+
+        if (!named && !character) {
+            continue;
+        }
+
+        [key setTag:named ? named[0] : character];
+
+        if (isKeypadKeyCode(code)) {
+            [key setName:named ? named[1] : [NSString stringWithFormat:localized(@"keypad %@"), character]];
+            [key setKeypad:YES];
+            [keypad addObject:key];
+            continue;
+        }
+
+        [key setName:named ? named[1] : character];
+        [key setNatural:tagMatchesKeycap([key tag], code, keycap)];
+        [keys addObject:key];
+    }
+
+    // The keys flagsChanged: gives.
+    NSArray<NSString *> *modifier = nil;
+    BOOL natural = YES;
+
+    switch (keycap->id) {
+    case JukuKeyShift: modifier = @[@"⇧", localized(@"⇧ Shift")]; break;
+    case JukuKeyCtrl: modifier = @[@"⌃", localized(@"⌃ Control")]; break;
+    case kJukuKeyCaps: modifier = @[@"⇪", localized(@"⇪ Caps Lock")]; break;
+    case kJukuKeySemicolonPlus: modifier = @[localized(@"right ⌥"), localized(@"Right Option ⌥")]; natural = NO; break;
+    }
+
+    if (modifier) {
+        HostKey *key = [[HostKey alloc] init];
+        [key setTag:modifier[0]];
+        [key setName:modifier[1]];
+        [key setNatural:natural];
+        [keys addObject:key];
+    }
+
+    [keys sortWithOptions:NSSortStable usingComparator:^NSComparisonResult(HostKey *a, HostKey *b) {
+        return a.natural == b.natural ? NSOrderedSame : a.natural ? NSOrderedAscending : NSOrderedDescending;
+    }];
+    [keys addObjectsFromArray:keypad];
+    return keys;
 }

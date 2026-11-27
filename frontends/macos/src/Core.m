@@ -59,6 +59,52 @@ extern const JukuFrame *juku_frame(const JukuMachine *m);
 extern void             juku_key(JukuMachine *m, uint8_t key, bool down);   // key = column << 3 | row
 extern void             juku_keys_release_all(JukuMachine *m);
 extern void             juku_caps_lock(JukuMachine *m, bool on);   // guest Caps Lock follows this
+extern bool             juku_key_down(const JukuMachine *m, uint8_t key);
+extern uint8_t          juku_consw(const JukuMachine *m);   // RomBios: bit 0 CAPS LOCK, bit 1 RUS
+
+// The keyboard as it looks (core/src/keyboard/layout.rs): positions and sizes
+// in quarter keys, x from ESC's left edge, rows from the F row.
+enum {
+    JukuLegendPair,             // top at the top left, bottom at the bottom right
+    JukuLegendFunction,         // F1, centered
+    JukuLegendWord,             // small, centered: ESC, CTRL, ERASE, DEL
+    JukuLegendWideWord,         // large, centered: TAB, RETURN, SHIFT
+    JukuLegendTwoLines,         // CAPS LOCK, LAT RUS
+    JukuLegendArrow,            // top is ← → ↑ or ↓
+    JukuLegendBlank,            // the space bar
+    JukuKeyboardLeft = -2,      // TAB's left edge
+    JukuKeyboardRight = 63,     // RETURN's right edge
+    JukuKeyboardRows = 6,
+    JukuBadgeX = 38,            // the JUKU E5101 badge beside F8
+    JukuBadgeWidth = 17,
+};
+
+typedef struct {
+    uint8_t id;                 // column << 3 | row, JukuKeyShift or JukuKeyCtrl
+    int8_t  x;
+    uint8_t row;
+    uint8_t width;
+    uint8_t legend;
+    char    top[8];             // UTF-8
+    char    bottom[8];
+} JukuKeycap;
+
+extern size_t           juku_keycap_count(void);
+extern bool             juku_keycap(size_t index, JukuKeycap *out);
+
+// The keyboard window's picture (core/src/keyboard/drawing.rs): drawing
+// commands in drawing units, which KeyboardView.m replays. A picture call
+// returns the length and writes only if it fits in `capacity`.
+enum {
+    JukuDrawBackground = 0x01, JukuDrawMove = 0x02, JukuDrawLine = 0x03, JukuDrawQuad = 0x04,
+    JukuDrawCubic = 0x05, JukuDrawClose = 0x06, JukuDrawFill = 0x10, JukuDrawLinear = 0x11,
+    JukuDrawRadial = 0x12, JukuDrawStroke = 0x13, JukuDrawLabel = 0x20,
+};
+
+extern void             juku_keyboard_size(float *width, float *height);
+extern size_t           juku_keyboard_picture(const bool *down, const bool *labeled, int32_t hover, uint8_t *out, size_t capacity);
+extern size_t           juku_keycap_picture(size_t index, uint8_t *out, size_t capacity, float *width, float *height);
+extern int32_t          juku_keycap_at(float x, float y);   // −1 for none
 extern bool             juku_set_key_click(JukuMachine *m, bool on);   // patches the ROM; false if unknown ROM
 extern void             juku_set_t32_fast_clock(JukuMachine *m, bool on);   // T3.2 at 1.23 MHz, not once a frame
 extern void             juku_set_drive_sounds(JukuMachine *m, bool on);   // motor, stepping, disks in and out

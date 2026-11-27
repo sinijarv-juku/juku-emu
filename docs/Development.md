@@ -121,6 +121,7 @@ cargo test -p juku --test boot                        # one test file of the cor
 cargo test -p juku --test cpu_exercisers -- --ignored # 8080EXM, about 20 s
 JUKU_TEST_DISKS=<folder> cargo test -p juku           # with the disk tests
 cargo run -p juku --profile test --example bench      # emulation speed, × real time
+cargo run -p juku --profile test --example keyboard_svg -- kb.svg   # the keyboard window's picture as SVG
 ```
 
 The disk, mouse and other tests that boot from floppies need
@@ -138,6 +139,21 @@ either: each test downloads its program with `curl` the first time, from
 [superzazu/8080](https://github.com/superzazu/8080) at a fixed commit, into
 `target/cpu_tests`, where `cargo clean` leaves them. Without the network
 they are skipped too.
+
+## The keyboard's lettering
+
+The keyboard window's legends are outlines in `core/src/keyboard/glyphs.rs`
+(spec §6.4), made from Sofia Sans Bold by `tools/keycap_glyphs.py`. After
+changing a legend in `core/src/keyboard/layout.rs`, make them again from the
+font's variable file, `SofiaSans[wght].ttf` from
+[google/fonts](https://github.com/google/fonts/tree/main/ofl/sofiasans):
+
+```sh
+python3 -m pip install fonttools
+python3 tools/keycap_glyphs.py 'SofiaSans[wght].ttf'   # weight 700 by default
+```
+
+A test checks that every legend has its outlines.
 
 ## Continuous integration
 

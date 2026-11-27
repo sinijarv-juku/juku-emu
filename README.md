@@ -26,7 +26,9 @@ RomBios in ROM and EKDOS, a CP/M compatible system, on 5.25" floppies.
   monitor with BASIC, are included. Other system ROM files and expansion
   ROMs, such as JBASIC, can be loaded.
 - **Input:** the Juku keyboard layout mapped by key position, including
-  the Estonian letters, and the Juku mouse.
+  the Estonian letters, and the Juku mouse. A window shows the Juku
+  keyboard, with the keys to press on yours and the keys that are down;
+  its keys can be clicked.
 - **Debugger:** debugging of Juku programs in VS Code (see
   [Development](docs/Development.md#debugging-juku-programs)).
 - **Languages:** English and Estonian user interface.
@@ -72,9 +74,20 @@ one. Write Protect keeps programs from writing to a disk. Holding Option
 (Mac) or Alt (Windows) as you drop an image puts it in B:.
 
 **Keyboard.** Keys go to the Juku by position, so the Juku's layout is on
-your keyboard's keys: Ü, Õ, Ö and Ä are where `[`, `]`, `;` and `'` are.
-Input → Keyboard Mapping lists every key whose Juku legend differs. Caps
-Lock follows yours.
+your keyboard's keys: Ü, Õ, Ö and Ä are where `[`, `]`, `;` and `'` are
+on a US keyboard. Caps Lock follows yours.
+
+Input → Keyboard (⌘K on the Mac, Alt+K on Windows) shows the Juku
+keyboard. A blue tag on a key names the key to press for it on yours where
+that is not the key its legend suggests, in your keyboard layout; Mac
+Keys (PC Keys on Windows) shows the tags on every key, or on none. Keys go
+down as you type, and a click presses a key: hold the mouse button to hold
+it, and a click on SHIFT or CTRL keeps it down until the next key.
+Pointing at a key shows your keys for it below. LAT, RUS and CAPS show the
+RomBios keyboard mode. The window stays above the emulator without taking
+the keyboard from it, so typing goes on while it is open.
+
+![The Keyboard window, with the `* :` key under the pointer](docs/images/keyboard.png)
 
 **Mouse.** A click captures the mouse when the running program uses it;
 Capture Mouse in the Input menu does it any time, and lets it go again.
@@ -93,6 +106,7 @@ Capture Mouse in the Input menu does it any time, and lets it go again.
 | Warp speed (up to 20×, muted) | ⌘W | Alt+W |
 | CRT effects on and off | ⌘E | Alt+E |
 | Capture and release the mouse | ⌘M | Alt+M |
+| Show and hide the keyboard | ⌘K | Alt+K |
 | Full screen | ⌃⌘F | Alt+Enter |
 | Settings | ⌘, | Alt+, |
 
@@ -125,4 +139,6 @@ some programs need (RDEM, for one) and the debugger.
 
 MIT, see [LICENSE](LICENSE). The ROM images in `resources/roms` are not
 covered by it; their [README](resources/roms/README.md) says where they
-come from and why they are included.
+come from and why they are included. The keyboard window's lettering is
+made from Sofia Sans, under the SIL Open Font License
+([core/src/keyboard/Sofia-Sans-OFL.txt](core/src/keyboard/Sofia-Sans-OFL.txt)).

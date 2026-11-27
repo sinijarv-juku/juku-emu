@@ -277,6 +277,125 @@ pub unsafe extern "C" fn juku_keys_release_all(m: *mut Machine) {
     unsafe { &mut *m }.release_all_keys();
 }
 
+/// Whether a key is down: `column << 3 | row`, 0x80 SHIFT or 0x81 CTRL.
+///
+/// # Safety
+/// `m` must be a valid machine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn juku_key_down(m: *const Machine, key: u8) -> bool {
+    unsafe { &*m }.key_down(key)
+}
+
+/// RomBios's keyboard state CONSW (MD §14.3): bit 0 CAPS LOCK, bit 1 RUS.
+///
+/// # Safety
+/// `m` must be a valid machine pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn juku_consw(m: *const Machine) -> u8 {
+    unsafe { &*m }.consw()
+}
+
+/// A keycap of `keyboard::layout::KEYCAPS`, with its legends as
+/// NUL-terminated UTF-8.
+#[repr(C)]
+pub struct JukuKeycap {
+    pub id: u8,
+    pub x: i8,
+    pub row: u8,
+    pub width: u8,
+    pub legend: u8,
+    pub top: [u8; 8],
+    pub bottom: [u8; 8],
+}
+
+/// The number of keycaps.
+#[unsafe(no_mangle)]
+pub extern "C" fn juku_keycap_count() -> usize {
+    crate::keyboard::layout::KEYCAPS.len()
+}
+
+/// The keyboard picture's size in drawing units (`keyboard::drawing`).
+///
+/// # Safety
+/// `width` and `height` must be valid for writes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn juku_keyboard_size(width: *mut f32, height: *mut f32) {
+    use crate::keyboard::drawing::{HEIGHT, WIDTH};
+    unsafe {
+        width.write(WIDTH);
+        height.write(HEIGHT);
+    }
+}
+
+/// Copies `bytes` to `out` if they fit in `capacity`; returns their length.
+///
+/// # Safety
+/// `out` must be valid for `capacity` bytes of writes.
+unsafe fn copy_out(bytes: &[u8], out: *mut u8, capacity: usize) -> usize {
+    if bytes.len() <= capacity && !out.is_null() {
+        unsafe { ptr::copy_nonoverlapping(bytes.as_ptr(), out, bytes.len()) };
+    }
+
+    bytes.len()
+}
+
+/// Draws the keyboard (`keyboard::drawing`) into `out`: `down` and
+/// `labeled` hold a flag per keycap, `hover` is a keycap index or −1.
+/// Returns the picture's length; if it is more than `capacity`, nothing is
+/// written, and the caller tries again with a larger buffer.
+///
+/// # Safety
+/// `down` and `labeled` must hold `juku_keycap_count()` flags; `out` must be
+/// valid for `capacity` bytes of writes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn juku_keyboard_picture(down: *const bool, labeled: *const bool, hover: i32, out: *mut u8, capacity: usize) -> usize {
+    use crate::keyboard::drawing::{KeyboardState, keyboard};
+    let n = crate::keyboard::layout::KEYCAPS.len();
+    let (down, labeled) = unsafe { (core::slice::from_raw_parts(down, n), core::slice::from_raw_parts(labeled, n)) };
+    let picture = keyboard(&KeyboardState { down, labeled, hover: usize::try_from(hover).ok() });
+    unsafe { copy_out(&picture.bytes, out, capacity) }
+}
+
+/// Draws keycap `index` alone into `out`, as `juku_keyboard_picture` does,
+/// and gives the picture's size. Returns 0 if there is no such keycap.
+///
+/// # Safety
+/// `out` must be valid for `capacity` bytes of writes, `width` and `height`
+/// for writes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn juku_keycap_picture(index: usize, out: *mut u8, capacity: usize, width: *mut f32, height: *mut f32) -> usize {
+    let Some((picture, w, h)) = crate::keyboard::drawing::keycap_alone(index) else { return 0 };
+    unsafe {
+        width.write(w);
+        height.write(h);
+        copy_out(&picture.bytes, out, capacity)
+    }
+}
+
+/// The keycap at a point of the keyboard picture, or −1.
+#[unsafe(no_mangle)]
+pub extern "C" fn juku_keycap_at(x: f32, y: f32) -> i32 {
+    crate::keyboard::drawing::keycap_at(x, y).map_or(-1, |i| i as i32)
+}
+
+/// Fills `out` with keycap `index`; false if there is no such keycap.
+///
+/// # Safety
+/// `out` must be valid for writes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn juku_keycap(index: usize, out: *mut JukuKeycap) -> bool {
+    let Some(k) = crate::keyboard::layout::KEYCAPS.get(index) else { return false };
+    let c_string = |s: &str| {
+        let mut buf = [0u8; 8];
+        buf[..s.len()].copy_from_slice(s.as_bytes());
+        buf
+    };
+    let keycap =
+        JukuKeycap { id: k.id, x: k.x, row: k.row, width: k.width, legend: k.legend as u8, top: c_string(k.top), bottom: c_string(k.bottom) };
+    unsafe { out.write(keycap) };
+    true
+}
+
 /// Sets a keyboard DIP switch bank: `bank` 4 or 5 (the port B bit it is read
 /// on); bit n = switch on column 8 + n is ON.
 ///

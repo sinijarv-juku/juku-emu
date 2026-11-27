@@ -8,6 +8,10 @@
 
 use crate::snapshot::{Reader, Writer};
 
+pub mod drawing;
+pub mod glyphs;
+pub mod layout;
+
 pub const KEY_SHIFT: u8 = 0x80;
 pub const KEY_CTRL: u8 = 0x81;
 
@@ -55,6 +59,16 @@ impl Keyboard {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Whether a key is down. Unknown IDs are up.
+    pub fn is_down(&self, id: u8) -> bool {
+        match id {
+            KEY_SHIFT => self.shift,
+            KEY_CTRL => self.ctrl,
+            _ if id < 0x80 && id & 7 < 6 => self.cols[(id >> 3) as usize] & 1 << (id & 7) != 0,
+            _ => false,
         }
     }
 

@@ -4,7 +4,7 @@
 #import "Audio.m"
 #import "Core.m"
 #import "Disks.m"
-#import "KeyboardHelp.m"
+#import "KeyboardWindow.m"
 #import "Renderer.m"
 #import "Roms.m"
 #import "Settings.m"
@@ -26,7 +26,7 @@
     BOOL _keyClickAvailable;    // the key click patch applies to that ROM
     NSString *_expansionPath;   // the expansion ROM plugged in, or nil
     SettingsWindow *_settingsWindow;
-    KeyboardHelp *_keyboardHelp;
+    KeyboardWindow *_keyboardWindow;
     JukuDap *_dap;              // the debug server, or NULL (spec §12.3)
     uint16_t _dapPort;          // its port
     uint16_t _dapArgPort;       // --debug-server[=port] on the command line, or 0
@@ -135,7 +135,7 @@ static void createMenubar(DiskDrives *disks)
     NSMenu *inputMenu = [[NSMenu alloc] initWithTitle:localized(@"Input")];
     addMenuItem(inputMenu, @"Capture Mouse", @selector(toggleMouseCapture:), @"m");
     [inputMenu addItem:[NSMenuItem separatorItem]];
-    addMenuItem(inputMenu, @"Keyboard Mapping", @selector(showKeyboardHelp:), @"");
+    addMenuItem(inputMenu, @"Keyboard", @selector(toggleKeyboard:), @"k");
     [mainMenu setSubmenu:inputMenu forItem:inputMenuItem];
 
     NSMenuItem *viewMenuItem = [mainMenu addItemWithTitle:@"" action:NULL keyEquivalent:@""];
@@ -328,13 +328,13 @@ static void fatalError(NSString *message)
     [[self emuView] setWarp:![[self emuView] warp]];
 }
 
-- (void)showKeyboardHelp:(id)sender
+- (void)toggleKeyboard:(id)sender
 {
-    if (!_keyboardHelp) {
-        _keyboardHelp = [[KeyboardHelp alloc] init];
+    if (!_keyboardWindow) {
+        _keyboardWindow = [[KeyboardWindow alloc] initWithMachine:_machine];
     }
 
-    [_keyboardHelp show];
+    [_keyboardWindow toggle];
 }
 
 - (void)insertDisk:(NSMenuItem *)sender
@@ -828,6 +828,11 @@ static void fatalError(NSString *message)
 
     if ([item action] == @selector(toggleMouseCapture:)) {
         [item setState:[[self emuView] mouseCaptured] ? NSControlStateValueOn : NSControlStateValueOff];
+        return YES;
+    }
+
+    if ([item action] == @selector(toggleKeyboard:)) {
+        [item setState:[_keyboardWindow visible] ? NSControlStateValueOn : NSControlStateValueOff];
         return YES;
     }
 

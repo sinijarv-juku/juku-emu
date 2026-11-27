@@ -306,6 +306,10 @@ pub fn window_brush() -> HBRUSH {
     if dark() { brush(WINDOW) } else { unsafe { GetSysColorBrush(COLOR_BTNFACE) } }
 }
 
+pub fn window_color() -> COLORREF {
+    if dark() { WINDOW } else { COLORREF(unsafe { GetSysColor(COLOR_BTNFACE) }) }
+}
+
 pub fn text_color() -> COLORREF {
     if dark() { TEXT } else { COLORREF(unsafe { GetSysColor(COLOR_BTNTEXT) }) }
 }

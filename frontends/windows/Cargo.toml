@@ -18,14 +18,19 @@ juku = { path = "../../core" }
 juku-dap = { path = "../../debugger/dap" }
 # The `implement` macro, for COM objects of the app's own, names this crate.
 windows-core = "=0.62.2"
+# Matrix3x2 and Vector2, which Direct2D takes (the Keyboard window).
+windows-numerics = "=0.3.1"
 
 [dependencies.windows]
 version = "=0.62.2"
 features = [
     "Win32_Foundation",
     "Win32_Globalization",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Direct3D12",
+    "Win32_Graphics_DirectWrite",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Dxgi",
     "Win32_Graphics_Dxgi_Common",

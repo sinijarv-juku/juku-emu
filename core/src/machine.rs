@@ -452,6 +452,17 @@ impl Machine {
         self.sys.kbd.set_key(id, down);
     }
 
+    /// Whether a key is down, pressed by the host or by the Caps Lock
+    /// follower.
+    pub fn key_down(&self, id: u8) -> bool {
+        self.sys.kbd.is_down(id)
+    }
+
+    /// RomBios's keyboard state CONSW (MD §14.3): bit 0 CAPS LOCK, bit 1 RUS.
+    pub fn consw(&self) -> u8 {
+        self.sys.mem[keyboard::CONSW as usize]
+    }
+
     /// Makes the guest Caps Lock follow `on` from now on: the host's state.
     pub fn set_caps_lock(&mut self, on: bool) {
         self.sys.caps.set_target(on);

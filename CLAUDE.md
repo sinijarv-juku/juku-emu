@@ -182,6 +182,11 @@ powershell -ExecutionPolicy Bypass -File frontends\windows\resources\make_artwor
   dotfile needs its own exception. `.cargo/config.toml` sets only the target
   directory: the build flags stay in `build.sh` and `build.cmd`, since they
   depend on the mode and would otherwise apply to `cargo test` too.
+- **The keyboard picture is the core's.** `core/src/keyboard/drawing.rs`
+  draws the Keyboard window as drawing commands that the front-ends only
+  replay (spec §6.4); change the look there, not in a front-end.
+  `glyphs.rs` is made by `tools/keycap_glyphs.py`: run it again after
+  changing a legend (docs/Development.md), never edit it.
 - **Two copies of the shaders.** `frontends/macos/src/Shaders.metal` and
   `frontends/windows/src/Shaders.hlsl` hold the same passes with the same
   constants; a change to the picture goes into both. The HLSL is
@@ -255,3 +260,5 @@ they are `SinijarvJuku.JukuEmu.DiskImage` and `.Snapshot`.
 - A single line most of the time. Add a body only when something about the
   change is not obvious.
 - No AI attribution: no `Co-Authored-By` or "generated with" lines.
+- Branches are named `type/name`, the type being the commit type of the
+  branch's main change: `feat/keyboard-window`, `fix/disk-eject`.

@@ -3,8 +3,18 @@
 //! bits 16–23 of a key message's lParam, with the extended-key flag (bit 24)
 //! as 0x100 here. Scan codes name positions, not characters, so the mapping
 //! does not depend on the keyboard layout.
+//!
+//! The Keyboard window names the PC keys for each Juku key by reversing the
+//! table (`host_keys`), in the current keyboard layout.
 
-use juku::keyboard::key_id;
+use juku::keyboard::layout::{Keycap, Legend};
+use juku::keyboard::{KEY_CAPS, KEY_CTRL, KEY_SHIFT, key_id};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    GetKeyboardLayout, HKL, MAPVK_VSC_TO_VK_EX, MapVirtualKeyExW, ToUnicodeEx, VK_ADD, VK_DECIMAL, VK_DIVIDE, VK_MULTIPLY, VK_NUMPAD0,
+    VK_SUBTRACT,
+};
+
+use crate::strings::{format, localized};
 
 /// The extended-key flag.
 pub const EXT: u16 = 0x100;
@@ -138,4 +148,176 @@ static KEYMAP: [u16; 512] = build();
 pub fn juku_key(scan: u16) -> Option<u8> {
     let entry = KEYMAP.get(scan as usize).copied().unwrap_or(0);
     (entry != 0).then_some(entry as u8)
+}
+
+// ---- PC keys by name, for the Keyboard window (spec §11.3) --------------------
+
+/// The ISO key left of Z: it is not on ANSI keyboards, so it is named by
+/// its place.
+const LEFT_OF_Z: u16 = 0x56;
+
+/// A PC key that reaches a Juku key: its tag, the short label the Keyboard
+/// window puts on the Juku key, and its name in the window's info strip.
+pub struct HostKey {
+    pub tag: String,
+    pub name: String,
+    /// Where the Juku legend says it is.
+    pub natural: bool,
+    pub keypad: bool,
+}
+
+/// The keypad keys of the table and the virtual key each types, whatever
+/// Num Lock's state: their characters come from the layout, which may give
+/// `,` for the decimal key.
+const KEYPAD: [(u16, u16); 16] = [
+    (0x52, VK_NUMPAD0.0),
+    (0x4F, VK_NUMPAD0.0 + 1),
+    (0x50, VK_NUMPAD0.0 + 2),
+    (0x51, VK_NUMPAD0.0 + 3),
+    (0x4B, VK_NUMPAD0.0 + 4),
+    (0x4C, VK_NUMPAD0.0 + 5),
+    (0x4D, VK_NUMPAD0.0 + 6),
+    (0x47, VK_NUMPAD0.0 + 7),
+    (0x48, VK_NUMPAD0.0 + 8),
+    (0x49, VK_NUMPAD0.0 + 9),
+    (0x4E, VK_ADD.0),
+    (0x4A, VK_SUBTRACT.0),
+    (0x37, VK_MULTIPLY.0),
+    (EXT | 0x35, VK_DIVIDE.0),
+    (0x53, VK_DECIMAL.0),
+    (EXT | 0x1C, 0), // keypad Enter, named
+];
+
+/// Keys with a name rather than a character: tag, name (a string key), and
+/// whether it is the key the Juku legend names (Esc for ESC, Enter for
+/// RETURN).
+fn named_key(scan: u16) -> Option<(&'static str, &'static str, bool)> {
+    Some(match scan {
+        0x1C => ("enter", "Enter", true),
+        s if s == EXT | 0x1C => ("enter", "keypad Enter", true),
+        0x0F => ("tab", "Tab", true),
+        0x39 => ("space", "Space bar", true),
+        0x0E => ("bksp", "Backspace", false),
+        0x01 => ("esc", "Esc", true),
+        s if s == EXT | 0x53 => ("del", "Delete", true),
+        s if s == EXT | 0x47 => ("home", "Home", false),
+        s if s == EXT | 0x4F => ("end", "End", false),
+        s if s == EXT | 0x49 => ("pgup", "Page Up", false),
+        s if s == EXT | 0x51 => ("pgdn", "Page Down", false),
+        s if s == EXT | 0x4B => ("←", "←", true),
+        s if s == EXT | 0x4D => ("→", "→", true),
+        s if s == EXT | 0x48 => ("↑", "↑", true),
+        s if s == EXT | 0x50 => ("↓", "↓", true),
+        0x3B => ("F1", "F1", true),
+        0x3C => ("F2", "F2", true),
+        0x3D => ("F3", "F3", true),
+        0x3E => ("F4", "F4", true),
+        0x3F => ("F5", "F5", true),
+        0x40 => ("F6", "F6", true),
+        0x41 => ("F7", "F7", true),
+        0x42 => ("F8", "F8", true),
+        _ => return None,
+    })
+}
+
+/// The character virtual key `vk` (or, for 0, the key at `scan`) types
+/// without modifiers in `layout`, upper case for a letter, or None. A dead
+/// key gives its accent. The keyboard state is left as it is.
+fn layout_character(scan: u16, vk: u16, layout: HKL) -> Option<String> {
+    let code = (scan & 0xFF) as u32 | if scan & EXT != 0 { 0xE000 } else { 0 };
+    let vk = if vk != 0 { vk as u32 } else { unsafe { MapVirtualKeyExW(code, MAPVK_VSC_TO_VK_EX, Some(layout)) } };
+
+    if vk == 0 {
+        return None;
+    }
+
+    let state = [0u8; 256];
+    let mut chars = [0u16; 8];
+    // Flag 4: leaves the keyboard state, a dead key's too, unchanged.
+    let n = unsafe { ToUnicodeEx(vk, code, &state, &mut chars, 4, Some(layout)) };
+    let n = if n < 0 { 1 } else { n as usize };
+    let text = String::from_utf16_lossy(&chars[..n.min(chars.len())]);
+
+    if !text.chars().next().is_some_and(|c| c > ' ') {
+        return None;
+    }
+
+    let upper = text.to_uppercase();
+    // Not ß → SS.
+    Some(if upper.chars().count() == text.chars().count() { upper } else { text })
+}
+
+/// Whether a character key's tag is one of the Juku key's legends.
+fn tag_matches(tag: &str, keycap: &Keycap) -> bool {
+    let tag = if tag == "-" { "−".to_string() } else { tag.to_lowercase() };
+
+    match keycap.legend {
+        Legend::Pair => tag == keycap.top.to_lowercase() || tag == keycap.bottom.to_lowercase(),
+        Legend::Blank => false,
+        _ => tag == keycap.top.to_lowercase(),
+    }
+}
+
+/// The PC keys that reach a Juku keycap, in the current keyboard layout:
+/// the main keys, the ones where the Juku legend says first, then the
+/// keypad.
+pub fn host_keys(keycap: &Keycap) -> Vec<HostKey> {
+    let layout = unsafe { GetKeyboardLayout(0) };
+    let mut keys = Vec::new();
+    let mut keypad = Vec::new();
+
+    for &(scan, col, row) in ENTRIES {
+        if key_id(col, row) != keycap.id {
+            continue;
+        }
+
+        if let Some(&(_, vk)) = KEYPAD.iter().find(|(s, _)| *s == scan) {
+            let key = match named_key(scan) {
+                Some((tag, name, _)) => HostKey { tag: tag.into(), name: localized(name).into(), natural: false, keypad: true },
+                None => {
+                    let Some(c) = layout_character(scan, vk, layout) else { continue };
+                    HostKey { name: format(localized("keypad %@"), &[&c]), tag: c, natural: false, keypad: true }
+                }
+            };
+            keypad.push(key);
+            continue;
+        }
+
+        let key = match named_key(scan) {
+            Some((tag, name, natural)) => HostKey { tag: tag.into(), name: localized(name).into(), natural, keypad: false },
+            None => {
+                let Some(c) = layout_character(scan, 0, layout) else { continue };
+                let name = if scan == LEFT_OF_Z { format(localized("the key left of Z (%@)"), &[&c]) } else { c.clone() };
+                HostKey { natural: tag_matches(&c, keycap), tag: c, name, keypad: false }
+            }
+        };
+        keys.push(key);
+    }
+
+    // The keys emu_window.rs handles itself.
+    let modifier = match keycap.id {
+        KEY_SHIFT => Some(("shift", "Shift", true)),
+        KEY_CTRL => Some(("ctrl", "Ctrl", true)),
+        KEY_CAPS => Some(("caps", "Caps Lock", true)),
+        SEMICOLON_PLUS => Some(("right Alt", "Right Alt", false)),
+        _ => None,
+    };
+
+    if let Some((tag, name, natural)) = modifier {
+        keys.push(HostKey { tag: localized(tag).into(), name: localized(name).into(), natural, keypad: false });
+    }
+
+    keys.sort_by_key(|k| !k.natural); // stable
+    keys.extend(keypad);
+    keys
+}
+
+/// The key a keycap's tag names: the first main key that is not where the
+/// Juku legend says, if there is one, else the one that is.
+pub fn tag_key(keys: &[HostKey]) -> Option<&HostKey> {
+    keys.iter().filter(|k| !k.keypad).fold(None, |tag: Option<&HostKey>, key| match tag {
+        None => Some(key),
+        Some(t) if t.natural && !key.natural => Some(key),
+        t => t,
+    })
 }

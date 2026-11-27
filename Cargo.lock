@@ -59,6 +59,7 @@ dependencies = [
  "juku-dap",
  "windows",
  "windows-core",
+ "windows-numerics",
 ]
 
 [[package]]

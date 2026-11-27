@@ -16,6 +16,7 @@ use crate::renderer::CrtSettings;
 // Images) have sections of their own, written by their modules.
 pub const SECTION_SETTINGS: &str = "Settings";
 pub const SECTION_WINDOW: &str = "Window";
+pub const SECTION_KEYBOARD_WINDOW: &str = "KeyboardWindow"; // its Frame, as the Window section's
 pub const SECTION_DRIVES: &str = "Drives";
 pub const SECTION_RECENT_DISKS: &str = "RecentDisks";
 
@@ -42,6 +43,7 @@ pub const ACCEPT_DEBUGGER: &str = "AcceptDebugger"; // the debug server listens 
 pub const DEBUGGER_PORT: &str = "DebuggerPort"; // its TCP port on 127.0.0.1; no control of its own
 pub const LANGUAGE: &str = "Language"; // "en" or "et"; absent = the system's (§11.4)
 pub const APPEARANCE: &str = "Appearance"; // "light" or "dark"; absent = Windows' setting (§11.5)
+pub const KEYBOARD_TAGS: &str = "KeyboardTags"; // PC key tags in the Keyboard window: 0 where different, 1 all, 2 off
 
 /// The CRT sliders, which Restore CRT Defaults resets (Settings.m,
 /// crtSettingKeys).

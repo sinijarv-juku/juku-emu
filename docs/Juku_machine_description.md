@@ -22,6 +22,7 @@ Sources:
 - **[PHOTO]** read from photographs of a production board on the Estonian computer museum's Juku page (https://arvutimuuseum.ee/cs00000/, 2019; chips dated 1988–89, board marked N127 by hand). The chip markings are legible; the tracks and the many factory-added wires cannot be followed in them.
 - **[BJ]** read from the Baltijets technical documentation for the E5104 (1988–90), found in the former factory in Narva and scanned by the Estonian computer museum in 2024 (`Books/Juku_E5401_Technical_docs/`). It holds the terminal's technical conditions with their acceptance tests (ТУ88 ЭССР 001-89), system-level drawings, parts and spare-parts lists, adjustment instructions and EPROM/PROM programming drawings, but no circuit diagram of the CPU module and no signal or timing checks for the video. One programming table is printed in full: ДГШ5.106.106 Д1, a hex dump of a 2 KB EPROM, which is the first 2 KB of JBASIC 1.1 (§3.2).
 - **[FLX]** read from Greaseweazle flux dumps (SuperCard Pro `.scp`, three revolutions a track) of three EKDOS disks from a private collection, `M2.scp`, `M5.scp` and `M6.scp`, decoded with `tools/scpdisk.py`, and from the formatters on the disks: FORMAT.COM 3.4, FMT.COM and FDMAINT.COM. M5 and M6 read without an error, all 1600 sectors on each revolution; M2 is worn, and its readable tracks agree.
+- **[KPH]** read from two photographs of E5101 consoles, taken from above (`Pictures/`): the keycaps, their legends and colors, and the badge.
 - **[INF]** inferred. Treat these as working assumptions.
 
 *Paths to source material (`Schematics/`, `Roms/`, `Software/`) refer to a private archive of Juku documents, ROMs and disks, outside this repository; much of it is public through the juku3000 project (https://github.com/infoaed/juku3000). The same ROM image is in `resources/roms/ekta37.bin`, with RomBios 3.43 #0031 (`ekta31.bin`) and JMON 3.3 (`jmon33.bin`). The disk images are not part of the repository.*
@@ -331,6 +332,22 @@ The 1987 specification has two variants of the machine. The base variant ДГШ3
 - **Different legends.** The keys are laid out ЙЦУКЕН, with the Latin letter that shares each Cyrillic letter's KOI-7 code on the keycap (Й/J, Ц/C, У/U …). The special keys are named in Russian: СП1–СП8, АР2, ГТ, УС, ВК, СБР, ЗБ, ПР, РУС/ЛАТ.
 - **The same switch gives a different character.** S3.2, for example, is `1 !` on the 015 and `; +` on the 014, and S7.3 is Q on the 015 and Й J on the 014. The 014 also has one more key in the matrix: S18.2 `_` on line 15 of the Z row, where the 015 has its right SHIFT outside the matrix.
 - RomBios 3.43m's table (§6.3) matches the 015's legends, so a machine with the 014 keyboard would need a ROM with its own key table. No such ROM is known. [INF]
+
+### 6.6 Layout and legends [KBD][KPH]
+The assembly drawing ДГШ5.104.015 СБ places the 73 keys on a grid of quarter keys; the photographs agree with it. `core/src/keyboard/layout.rs` holds the layout as a table of keycaps, from which `drawing.rs` beside it draws the emulator's keyboard window. Positions below are counted in keys from the left edge of ESC.
+
+| Row | Keys, left to right |
+|---|---|
+| F row | F1–F8 from 1, F1 above `1`. To their right, from 9½ to 13¾, the black JUKU E5101 badge, with the power LED VD1 at its right end. |
+| Digit row | ESC, `1`–`0`, `− =`, `Ю @`, `\ ^`, ERASE: 15 keys from 0 |
+| Q row | TAB, two keys wide, from −½; Q–P, Ü, Õ, `{ [`, `} ]` |
+| A row | CTRL from −¼, CAPS LOCK, A–L, Ö, Ä, `* :`, RETURN two keys wide |
+| Z row | SHIFT, two keys wide, from ¼; Z–M, `< ,`, `> .`, `? /`, `+ ;`, SHIFT two keys wide |
+| Bottom row | LAT RUS from ¾, ←, →, the space bar eight keys wide, ↑, ↓, DEL |
+
+- **Legends.** A key with two characters has the Latin letter, or the shifted character, at the top left in white, and the Cyrillic letter, or the unshifted character, at the bottom right in orange, a little smaller: Q and Я, `!` and `1`. The Estonian letters are white, with a Cyrillic letter in orange: Ü Ч, Õ Щ, Ö Э, Ä Ш. Most symbols are about as high as the letters: `*` and `:` nearly so, `/` higher; `,`, `.`, `"` and `'` are small marks. The `_` of the `0` key is a short dash high in its corner. F1–F8, TAB, SHIFT and RETURN are in large white letters, ESC, CTRL and DEL in smaller ones, and ERASE fills the key's width; CAPS LOCK and LAT RUS are in two lines almost as large as RETURN. The arrows have a thin shaft and a solid head.
+- **Colors.** The case is ivory. The keycaps are black, with a lighter top face; the space between the keys and the case is dark.
+- The legends are those of the 015 module (§6.5): the 014 has Russian ones.
 
 ---
 

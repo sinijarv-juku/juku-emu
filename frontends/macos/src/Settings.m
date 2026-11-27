@@ -25,6 +25,7 @@ static NSString *const kSettingExpansionRomFile = @"ExpansionROMFile";   // the 
 static NSString *const kSettingRecentDisks = @"RecentDisks";             // bookmarks, newest first
 static NSString *const kSettingDrives = @"Drives";                       // the disks in A: and B: (Disks.m)
 static NSString *const kSettingSnapshotKey = @"SnapshotKey";             // 64 random bytes sealing snapshots' file links (Snapshots.m)
+static NSString *const kSettingKeyboardTags = @"KeyboardTags";           // Mac key tags on the keyboard window's keys: where different, all, off
 static NSString *const kSettingLanguages = @"AppleLanguages";            // macOS per-app language, read at launch
 
 static NSString *const kDefaultSystemRom = @"ekta37";

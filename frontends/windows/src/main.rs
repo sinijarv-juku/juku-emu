@@ -24,7 +24,8 @@ mod disks;
 mod emu_window;
 mod file_dialogs;
 mod file_types;
-mod keyboard_help;
+mod keyboard_picture;
+mod keyboard_window;
 mod keymap;
 mod recent_disks;
 mod renderer;
@@ -131,12 +132,12 @@ const ID_CRT_EFFECTS: u16 = 240;
 const ID_FULL_SCREEN: u16 = 241;
 const ID_SIZE: u16 = 250; // + half steps: 252 is 1×, 256 is 3×
 const ID_CAPTURE_MOUSE: u16 = 270;
-const ID_KEYBOARD_HELP: u16 = 271;
+const ID_KEYBOARD: u16 = 271;
 const ID_RECENT: u16 = 300; // + RECENT_IDS × drive + the image's place in the list
 const RECENT_IDS: u16 = 100;
 
 /// The Left Alt shortcuts (§11.3): a key's virtual-key code and Shift.
-const SHORTCUTS: [(u16, bool, u16); 16] = [
+const SHORTCUTS: [(u16, bool, u16); 17] = [
     (b'O' as u16, false, ID_OPEN_SNAPSHOT),
     (b'S' as u16, true, ID_SAVE_SNAPSHOT),
     (b'S' as u16, false, ID_QUICK_SAVE),
@@ -145,6 +146,7 @@ const SHORTCUTS: [(u16, bool, u16); 16] = [
     (b'E' as u16, false, ID_CRT_EFFECTS),
     (0x0D, false, ID_FULL_SCREEN), // Enter
     (b'M' as u16, false, ID_CAPTURE_MOUSE),
+    (b'K' as u16, false, ID_KEYBOARD),
     (b'R' as u16, false, ID_RESET),
     (b'R' as u16, true, ID_POWER_CYCLE),
     (b'P' as u16, false, ID_PAUSE),
@@ -267,7 +269,7 @@ fn create_menu_bar() -> Result<HMENU> {
     let input = add_submenu(bar, "Input")?;
     add_item(input, ID_CAPTURE_MOUSE, "Capture Mouse", "Alt+M")?;
     add_separator(input)?;
-    add_item(input, ID_KEYBOARD_HELP, "Keyboard Mapping", "")?;
+    add_item(input, ID_KEYBOARD, "Keyboard", "Alt+K")?;
 
     let view = add_submenu(bar, "View")?;
     add_item(view, ID_CRT_EFFECTS, "CRT Effects", "Alt+E")?;
@@ -485,6 +487,7 @@ pub fn update_menu(menu: HMENU) {
     check(ID_PAUSE, paused);
     check(ID_WARP, warp);
     check(ID_CAPTURE_MOUSE, captured);
+    check(ID_KEYBOARD, keyboard_window::visible());
     enable(ID_QUICK_LOAD, snapshots::can_quick_load());
 
     for drive in 0..DRIVES {
@@ -664,7 +667,7 @@ pub fn command(hwnd: HWND, id: u16) {
             let _ = unsafe { SetFocus(Some(hwnd)) };
             emu_window::with_emu(|emu| emu.toggle_mouse_capture());
         }
-        ID_KEYBOARD_HELP => keyboard_help::show(hwnd),
+        ID_KEYBOARD => keyboard_window::toggle(hwnd),
         // Warm, like the hardware button, and cold.
         ID_RESET => {
             emu_window::with_emu(|emu| emu.machine().reset(false));
@@ -802,44 +805,45 @@ fn hand_over(file: Option<&Path>, debug_port: u16) -> bool {
 
 // ---- Main loop ------------------------------------------------------------------
 
-/// A message for the Settings or Keyboard Mapping window, which are not
-/// dialogs but work like them: Tab moves between the controls and Esc closes
-/// the window (`IsDialogMessageW`). Left Alt shortcuts go to the menus, as
-/// the Mac's menu bar serves every window, except Alt+W, which closes the
-/// window as Cmd-W does on the Mac. True if the message is handled.
+/// A message for the Settings window, which is not a dialog but works like
+/// one: Tab moves between the controls and Esc closes the window
+/// (`IsDialogMessageW`). Left Alt shortcuts go to the menus, as the Mac's
+/// menu bar serves every window, except Alt+W, which closes the window as
+/// Cmd-W does on the Mac. True if the message is handled. The Keyboard
+/// window never has the keyboard, so it gets no key messages.
 fn other_window_message(msg: &MSG) -> bool {
-    for window in [settings_window::window(), keyboard_help::window()].into_iter().flatten() {
-        if msg.hwnd != window && !unsafe { IsChild(window, msg.hwnd) }.as_bool() {
-            continue;
-        }
+    let Some(window) = settings_window::window() else {
+        return false;
+    };
 
-        if msg.message == WM_SYSKEYDOWN && unsafe { GetKeyState(VK_LMENU.0 as i32) } < 0 {
-            let shift = unsafe { GetKeyState(VK_SHIFT.0 as i32) } < 0;
-
-            match shortcut(msg.wParam.0 as u16, shift) {
-                Some(ID_WARP) => {
-                    let _ = unsafe { PostMessageW(Some(window), WM_CLOSE, WPARAM(0), LPARAM(0)) };
-                    return true;
-                }
-                Some(id) => {
-                    if let Some(main) = emu_window::main_window() {
-                        command(main, id);
-                    }
-
-                    return true;
-                }
-                None => {}
-            }
-        }
-
-        if Some(window) == settings_window::window() && settings_window::pane_key(msg) {
-            return true;
-        }
-
-        return unsafe { IsDialogMessageW(window, msg) }.as_bool();
+    if msg.hwnd != window && !unsafe { IsChild(window, msg.hwnd) }.as_bool() {
+        return false;
     }
 
-    false
+    if msg.message == WM_SYSKEYDOWN && unsafe { GetKeyState(VK_LMENU.0 as i32) } < 0 {
+        let shift = unsafe { GetKeyState(VK_SHIFT.0 as i32) } < 0;
+
+        match shortcut(msg.wParam.0 as u16, shift) {
+            Some(ID_WARP) => {
+                let _ = unsafe { PostMessageW(Some(window), WM_CLOSE, WPARAM(0), LPARAM(0)) };
+                return true;
+            }
+            Some(id) => {
+                if let Some(main) = emu_window::main_window() {
+                    command(main, id);
+                }
+
+                return true;
+            }
+            None => {}
+        }
+    }
+
+    if settings_window::pane_key(msg) {
+        return true;
+    }
+
+    unsafe { IsDialogMessageW(window, msg) }.as_bool()
 }
 
 /// Hands out the waiting window messages. False once the app is to quit.
