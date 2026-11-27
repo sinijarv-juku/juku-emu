@@ -11,8 +11,8 @@ dependencies = [
 
 [[package]]
 name = "juku-asm"
-version = "0.3.0"
-source = "git+https://github.com/sinijarv-juku/juku-sdk?tag=v0.3.0#bb5b3950b65d619d356cea534e7271150a17e83f"
+version = "0.4.0"
+source = "git+https://github.com/sinijarv-juku/juku-sdk?tag=v0.4.0#080efae6446c190e12f996a60048a8693e3c648c"
 dependencies = [
  "juku-i8080",
 ]
@@ -30,18 +30,18 @@ dependencies = [
 
 [[package]]
 name = "juku-demos"
-version = "0.3.0"
-source = "git+https://github.com/sinijarv-juku/juku-sdk?tag=v0.3.0#bb5b3950b65d619d356cea534e7271150a17e83f"
+version = "0.4.0"
+source = "git+https://github.com/sinijarv-juku/juku-sdk?tag=v0.4.0#080efae6446c190e12f996a60048a8693e3c648c"
 
 [[package]]
 name = "juku-i8080"
-version = "0.3.0"
-source = "git+https://github.com/sinijarv-juku/juku-sdk?tag=v0.3.0#bb5b3950b65d619d356cea534e7271150a17e83f"
+version = "0.4.0"
+source = "git+https://github.com/sinijarv-juku/juku-sdk?tag=v0.4.0#080efae6446c190e12f996a60048a8693e3c648c"
 
 [[package]]
 name = "juku-json"
-version = "0.3.0"
-source = "git+https://github.com/sinijarv-juku/juku-sdk?tag=v0.3.0#bb5b3950b65d619d356cea534e7271150a17e83f"
+version = "0.4.0"
+source = "git+https://github.com/sinijarv-juku/juku-sdk?tag=v0.4.0#080efae6446c190e12f996a60048a8693e3c648c"
 
 [[package]]
 name = "juku-thumbnail"

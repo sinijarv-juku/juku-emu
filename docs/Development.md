@@ -65,7 +65,7 @@ SDK's. They are *git dependencies* in `core/Cargo.toml` and
 `debugger/dap/Cargo.toml`:
 
 ```toml
-juku-asm = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.3.0" }
+juku-asm = { git = "https://github.com/sinijarv-juku/juku-sdk", tag = "v0.4.0" }
 ```
 
 Cargo clones the repository itself, at the tag, into its own cache, and

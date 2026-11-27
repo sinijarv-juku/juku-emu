@@ -169,8 +169,8 @@ powershell -ExecutionPolicy Bypass -File frontends\windows\resources\make_artwor
   EKDOS's and the ports' names come from juku-sdk's include files, each
   under a namespace: `include 'rombios.inc' as rb`, `include 'ekdos.inc'
   as dos` and `include 'ports.inc' as io`, then `call rb.tto`, `call
-  dos.bdos`, `out io.t2_1`. An anonymous label (`:`, `jnz
-  :-`) only where a name would be noise, one that would have to be made up
+  dos.bdos`, `out io.t2_1`. An anonymous label (`@:`, `jnz
+  @-`) only where a name would be noise, one that would have to be made up
   (`.ok`, `.wait2` beside `.wait`). The debug server's tests find
   juku-sdk's `demos/bounce.asm`'s lines by their text (`bounce_line`).
 - **System symbols are juku-sdk's.** `resources/symbols/rombios.dbg` and
